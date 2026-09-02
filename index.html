@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Batch — calories &amp; macros for people who cook once</title>
+<meta name="theme-color" content="#0f2a2e">
+<meta name="description" content="Log a batch once, then log a cup of it. Calorie and macro tracking built around cooking in bulk.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Batch">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0f2a2e;
+    --surface:#16383d;
+    --surface-2:#1d454b;
+    --line:#2a5f66;
+    --chalk:#eef3ef;
+    --muted:#93b1b1;
+    --protein:#ff7a5c;
+    --carbs:#f0c04a;
+    --fat:#86c46b;
+    --danger:#ff7a5c;
+    --r:14px;
+    --pad:16px;
+    font-synthesis-weight:none;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg);
+    color:var(--chalk);
+    font-family:"Familjen Grotesk",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    font-size:16px;
+    line-height:1.45;
+    -webkit-font-smoothing:antialiased;
+    font-variant-numeric:tabular-nums;
+    padding-bottom:calc(78px + env(safe-area-inset-bottom));
+  }
+  .wrap{max-width:600px;margin:0 auto;padding:0 var(--pad)}
+  button,input,select,textarea{font:inherit;color:inherit;font-variant-numeric:tabular-nums}
+  button{cursor:pointer;border:0;background:none}
+  :focus-visible{outline:2px solid var(--chalk);outline-offset:2px;border-radius:6px}
+
+  /* ---------- top bar ---------- */
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:18px 0 10px}
+  .brand{font-weight:700;letter-spacing:-.02em;font-size:19px}
+  .brand span{color:var(--muted);font-weight:500}
+  .iconbtn{width:38px;height:38px;border-radius:10px;border:1px solid var(--line);display:grid;place-items:center;color:var(--muted);font-size:17px}
+  .iconbtn:hover{color:var(--chalk);border-color:var(--chalk)}
+
+  .datenav{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+  .datenav .day{font-weight:600;font-size:15px}
+  .datenav .sub{color:var(--muted);font-size:13px}
+  .nav-arrow{width:32px;height:32px;border-radius:8px;border:1px solid var(--line);color:var(--muted);display:grid;place-items:center;line-height:1}
+  .nav-arrow[disabled]{opacity:.3;cursor:default}
+  .spacer{flex:1}
+  .textbtn{color:var(--muted);font-size:13px;border-bottom:1px solid transparent;padding:2px 0}
+  .textbtn:hover{color:var(--chalk);border-color:var(--chalk)}
+
+  /* ---------- gauge ---------- */
+  .gauge{background:var(--surface);border-radius:var(--r);padding:18px var(--pad) 16px;border:1px solid var(--line)}
+  .readout{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+  .readout .big{font-size:clamp(46px,15vw,64px);font-weight:700;letter-spacing:-.045em;line-height:.95}
+  .readout .unit{font-size:15px;color:var(--muted);font-weight:500}
+  .readout.over .big{color:var(--protein)}
+  .eaten{color:var(--muted);font-size:13.5px;margin-top:6px}
+  .rail{height:9px;border-radius:99px;background:var(--surface-2);overflow:hidden;margin-top:12px}
+  .rail > i{display:block;height:100%;border-radius:99px;background:var(--chalk);transition:width .35s ease}
+  .rail.over > i{background:var(--protein)}
+
+  .macros{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px}
+  .macro .head{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;color:var(--muted)}
+  .macro .val{font-weight:600;font-size:15px;color:var(--chalk)}
+  .macro .rail{height:5px;margin-top:6px}
+  .macro.p .rail > i{background:var(--protein)}
+  .macro.c .rail > i{background:var(--carbs)}
+  .macro.f .rail > i{background:var(--fat)}
+
+  /* ---------- lists ---------- */
+  h2{font-size:14px;font-weight:600;color:var(--muted);margin:26px 0 10px;letter-spacing:0}
+  .row{display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--surface);border:1px solid var(--line);border-radius:12px;margin-bottom:8px;text-align:left;width:100%}
+  .row:hover{border-color:#3d7d84}
+  .row .name{font-weight:600;font-size:15.5px;line-height:1.25}
+  .row .meta{color:var(--muted);font-size:13px;margin-top:2px}
+  .row .grow{flex:1;min-width:0}
+  .row .kcal{font-weight:700;font-size:16px;white-space:nowrap}
+  .dots{display:flex;gap:4px;margin-top:6px;align-items:center;font-size:12.5px;color:var(--muted)}
+  .dot{width:7px;height:7px;border-radius:99px;display:inline-block}
+  .dot.p{background:var(--protein)}.dot.c{background:var(--carbs)}.dot.f{background:var(--fat)}
+  .empty{border:1px dashed var(--line);border-radius:12px;padding:20px 16px;color:var(--muted);font-size:14.5px}
+  .empty b{color:var(--chalk);display:block;font-size:15.5px;margin-bottom:4px;font-weight:600}
+
+  .btn{background:var(--chalk);color:#0f2a2e;font-weight:600;padding:13px 18px;border-radius:12px;font-size:15.5px;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+  .btn:hover{background:#fff}
+  .btn.block{width:100%}
+  .btn.ghost{background:transparent;color:var(--chalk);border:1px solid var(--line)}
+  .btn.ghost:hover{border-color:var(--chalk);background:transparent}
+  .btn.small{padding:8px 12px;font-size:13.5px;border-radius:9px}
+  .btn.danger{background:transparent;color:var(--danger);border:1px solid var(--danger)}
+  .quick{background:var(--surface-2);color:var(--chalk);border:1px solid var(--line);padding:7px 11px;border-radius:99px;font-size:13px;white-space:nowrap}
+  .quick:hover{border-color:var(--chalk)}
+
+  /* ---------- fields ---------- */
+  label.field{display:block;margin-bottom:12px}
+  label.field > span{display:block;font-size:13px;color:var(--muted);margin-bottom:5px}
+  input[type=text],input[type=number],input[type=search],select{
+    width:100%;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;
+    padding:11px 12px;font-size:16px;color:var(--chalk);appearance:none;-webkit-appearance:none;
+  }
+  input::placeholder{color:#6f9296}
+  select{background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);background-position:calc(100% - 17px) 50%,calc(100% - 12px) 50%;background-size:5px 5px;background-repeat:no-repeat;padding-right:34px}
+  input:focus,select:focus{border-color:var(--chalk);outline:none}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .grid4 input{padding:11px 8px;text-align:center}
+
+  /* ---------- sheet ---------- */
+  .sheet-bg{position:fixed;inset:0;background:rgba(6,20,22,.72);z-index:40;display:none}
+  .sheet-bg.open{display:block}
+  .sheet{position:fixed;left:0;right:0;bottom:0;z-index:41;background:var(--bg);border-top:1px solid var(--line);
+    border-radius:20px 20px 0 0;max-height:92vh;overflow-y:auto;transform:translateY(100%);
+    transition:transform .22s ease;padding-bottom:calc(24px + env(safe-area-inset-bottom))}
+  .sheet.open{transform:translateY(0)}
+  .sheet-head{position:sticky;top:0;background:var(--bg);padding:16px var(--pad) 10px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--line);z-index:2}
+  .sheet-head h3{margin:0;font-size:17px;font-weight:700;flex:1;letter-spacing:-.01em}
+  .sheet-body{padding:16px var(--pad) 8px;max-width:600px;margin:0 auto}
+  @media (prefers-reduced-motion:reduce){.sheet,.rail>i{transition:none}}
+
+  /* ---------- tabs ---------- */
+  .tabs{position:fixed;left:0;right:0;bottom:0;z-index:30;background:rgba(15,42,46,.94);backdrop-filter:blur(10px);
+    border-top:1px solid var(--line);display:flex;padding:8px 8px calc(8px + env(safe-area-inset-bottom))}
+  .tabs button{flex:1;padding:8px 4px;border-radius:10px;color:var(--muted);font-size:12.5px;font-weight:600;display:grid;gap:3px;justify-items:center}
+  .tabs button .ic{font-size:18px;line-height:1}
+  .tabs button[aria-selected=true]{color:var(--chalk);background:var(--surface)}
+
+  .ing{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--line);font-size:14.5px}
+  .ing:last-child{border-bottom:0}
+  .ing .grow{flex:1;min-width:0}
+  .ing .g{color:var(--muted);font-size:13px}
+  .x{color:var(--muted);font-size:18px;padding:2px 6px;line-height:1}
+  .x:hover{color:var(--danger)}
+  .panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .panel .cap{padding:11px 12px;font-size:13px;color:var(--muted);border-bottom:1px solid var(--line)}
+  .per{display:flex;align-items:baseline;gap:8px;padding:14px 12px}
+  .per .n{font-size:30px;font-weight:700;letter-spacing:-.03em}
+  .per .l{color:var(--muted);font-size:13.5px}
+  .results{max-height:44vh;overflow-y:auto;margin-top:4px}
+  .banner{background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:13px;color:var(--muted);margin-bottom:12px}
+  .hint{color:var(--muted);font-size:12.5px;margin:-6px 0 12px}
+  .chipbar{display:flex;gap:8px;overflow-x:auto;padding:2px 0 4px;margin-bottom:12px;scrollbar-width:none}
+  .chipbar::-webkit-scrollbar{display:none}
+  .split{display:flex;gap:8px}
+  .split .btn{flex:1}
+  .totalline{display:flex;justify-content:space-between;padding:12px;font-size:14px;border-top:1px solid var(--line);color:var(--muted)}
+  .totalline b{color:var(--chalk);font-weight:600}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="topbar">
+    <div class="brand">Batch <span>· macros</span></div>
+    <button class="iconbtn" data-action="open-settings" aria-label="Settings">⚙</button>
+  </div>
+  <div id="storagewarn"></div>
+  <main id="view"></main>
+</div>
+
+<nav class="tabs" role="tablist">
+  <button role="tab" data-tab="today" aria-selected="true"><span class="ic">◔</span>Today</button>
+  <button role="tab" data-tab="cook" aria-selected="false"><span class="ic">◍</span>Batches</button>
+  <button role="tab" data-tab="foods" aria-selected="false"><span class="ic">☰</span>Foods</button>
+</nav>
+
+<div class="sheet-bg" id="sheetbg"></div>
+<section class="sheet" id="sheet" aria-hidden="true">
+  <div class="sheet-head">
+    <h3 id="sheettitle">Add</h3>
+    <button class="iconbtn" data-action="close-sheet" aria-label="Close">✕</button>
+  </div>
+  <div class="sheet-body" id="sheetbody"></div>
+</section>
+
+<script>
+(function () {
+"use strict";
+
+/* ---------------------------------------------------------------
+   storage — falls back to memory if localStorage is unavailable
+   (e.g. a sandboxed preview frame). Works fully on GitHub Pages.
+----------------------------------------------------------------*/
+var KEY = "batch-macros-v1";
+var canPersist = true;
+try { localStorage.setItem("__t", "1"); localStorage.removeItem("__t"); }
+catch (e) { canPersist = false; }
+var memory = null;
+
+function load() {
+  if (!canPersist) return memory;
+  try { return JSON.parse(localStorage.getItem(KEY)); } catch (e) { return null; }
+}
+function persist() {
+  if (!canPersist) { memory = JSON.parse(JSON.stringify(S)); return; }
+  try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {}
+}
+
+/* ---------------------------------------------------------------
+   data
+----------------------------------------------------------------*/
+// per 100 g: [kcal, protein, carbs, fat]; unit optional: [name, grams]
+var SEED = [
+  ["Chicken breast, cooked", 165, 31, 0, 3.6],
+  ["Chicken thigh, cooked", 209, 26, 0, 10.9],
+  ["Ground beef 85/15, cooked", 250, 26, 0, 15],
+  ["Salmon, cooked", 208, 20, 0, 13],
+  ["Egg", 143, 12.6, 0.7, 9.5, "egg", 50],
+  ["Greek yogurt, 2%", 73, 9.9, 3.9, 1.9],
+  ["Whole milk", 61, 3.2, 4.8, 3.3, "cup", 244],
+  ["Cheddar cheese", 403, 25, 1.3, 33],
+  ["Tofu, firm", 144, 17, 2.8, 8.7],
+  ["Olive oil", 884, 0, 0, 100, "tbsp", 13.5],
+  ["Butter", 717, 0.9, 0.1, 81, "tbsp", 14.2],
+  ["Peanut butter", 588, 25, 20, 50, "tbsp", 16],
+  ["White rice, dry", 365, 7.1, 80, 0.7, "cup", 185],
+  ["White rice, cooked", 130, 2.7, 28, 0.3, "cup", 158],
+  ["Brown rice, cooked", 123, 2.7, 25.6, 1, "cup", 195],
+  ["Pasta, dry", 371, 13, 75, 1.5],
+  ["Rolled oats, dry", 379, 13.2, 67.7, 6.5, "cup", 80],
+  ["Bread", 265, 9, 49, 3.2, "slice", 30],
+  ["Black beans, canned", 91, 6, 16.6, 0.3, "cup", 172],
+  ["Chickpeas, canned", 139, 7.1, 22.5, 2.6, "cup", 152],
+  ["Lentils, cooked", 116, 9, 20, 0.4, "cup", 198],
+  ["Potato", 77, 2, 17.5, 0.1],
+  ["Sweet potato", 86, 1.6, 20.1, 0.1],
+  ["Onion", 40, 1.1, 9.3, 0.1],
+  ["Bell pepper", 31, 1, 6, 0.3],
+  ["Broccoli", 34, 2.8, 6.6, 0.4],
+  ["Carrot", 41, 0.9, 9.6, 0.2],
+  ["Tomatoes, canned", 32, 1.6, 7.3, 0.3, "can", 400],
+  ["Banana", 89, 1.1, 22.8, 0.3, "medium", 118],
+  ["Apple", 52, 0.3, 13.8, 0.2, "medium", 182]
+];
+
+function seedFoods() {
+  return SEED.map(function (r, i) {
+    return {
+      id: "f" + i, name: r[0],
+      kcal: r[1], p: r[2], c: r[3], f: r[4],
+      unitName: r[5] || "", unitGrams: r[6] || 0
+    };
+  });
+}
+
+var S = load() || {
+  targets: { kcal: 2000, p: 150, c: 200, f: 65 },
+  foods: seedFoods(),
+  batches: [],
+  log: []
+};
+if (!S.foods || !S.foods.length) S.foods = seedFoods();
+if (!S.log) S.log = [];
+if (!S.batches) S.batches = [];
+
+var tab = "today";
+var day = todayKey();
+var draft = null;      // batch being edited
+var picked = null;     // item selected in the add sheet
+
+/* ---------------------------------------------------------------
+   helpers
+----------------------------------------------------------------*/
+function uid() { return Math.random().toString(36).slice(2, 9); }
+function todayKey() { return dateKey(new Date()); }
+function dateKey(d) {
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+function shiftDay(key, n) {
+  var p = key.split("-");
+  var d = new Date(+p[0], +p[1] - 1, +p[2]);
+  d.setDate(d.getDate() + n);
+  return dateKey(d);
+}
+function prettyDay(key) {
+  if (key === todayKey()) return "Today";
+  if (key === shiftDay(todayKey(), -1)) return "Yesterday";
+  var p = key.split("-");
+  var d = new Date(+p[0], +p[1] - 1, +p[2]);
+  return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+}
+function r0(n) { return Math.round(n || 0); }
+function r1(n) { n = n || 0; return Math.abs(n) < 10 ? Math.round(n * 10) / 10 : Math.round(n); }
+function esc(s) {
+  return String(s == null ? "" : s).replace(/[&<>"']/g, function (m) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m];
+  });
+}
+function num(v, d) { var n = parseFloat(v); return isNaN(n) ? (d || 0) : n; }
+function byId(list, id) { for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i]; return null; }
+function macroDots(m) {
+  return '<div class="dots"><span class="dot p"></span>' + r1(m.p) + 'p' +
+         '<span class="dot c" style="margin-left:8px"></span>' + r1(m.c) + 'c' +
+         '<span class="dot f" style="margin-left:8px"></span>' + r1(m.f) + 'f</div>';
+}
+function scale(src, factor) {
+  return { kcal: src.kcal * factor, p: src.p * factor, c: src.c * factor, f: src.f * factor };
+}
+
+/* batch maths: totals of all ingredients, then per one yield unit */
+function batchTotals(b) {
+  var t = { kcal: 0, p: 0, c: 0, f: 0, grams: 0 };
+  (b.items || []).forEach(function (it) {
+    var food = byId(S.foods, it.foodId);
+    if (!food) return;
+    var m = scale(food, it.grams / 100);
+    t.kcal += m.kcal; t.p += m.p; t.c += m.c; t.f += m.f; t.grams += it.grams;
+  });
+  return t;
+}
+function batchPerUnit(b) {
+  var t = batchTotals(b);
+  var n = b.yieldQty > 0 ? b.yieldQty : 1;
+  return { kcal: t.kcal / n, p: t.p / n, c: t.c / n, f: t.f / n };
+}
+function cookedGrams(b) { return b.cookedGrams > 0 ? b.cookedGrams : batchTotals(b).grams; }
+
+function dayLog(key) { return S.log.filter(function (e) { return e.date === key; }); }
+function dayTotals(key) {
+  return dayLog(key).reduce(function (a, e) {
+    a.kcal += e.kcal; a.p += e.p; a.c += e.c; a.f += e.f; return a;
+  }, { kcal: 0, p: 0, c: 0, f: 0 });
+}
+
+/* ---------------------------------------------------------------
+   views
+----------------------------------------------------------------*/
+var view = document.getElementById("view");
+
+function render() {
+  document.querySelectorAll(".tabs button").forEach(function (b) {
+    b.setAttribute("aria-selected", b.dataset.tab === tab ? "true" : "false");
+  });
+  if (tab === "today") viewToday();
+  else if (tab === "cook") viewBatches();
+  else viewFoods();
+  window.scrollTo(0, 0);
+}
+
+function gaugeHTML() {
+  var t = dayTotals(day), g = S.targets;
+  var left = g.kcal - t.kcal, over = left < 0;
+  var pct = g.kcal > 0 ? Math.min(100, (t.kcal / g.kcal) * 100) : 0;
+  function macro(cls, label, val, target) {
+    var w = target > 0 ? Math.min(100, (val / target) * 100) : 0;
+    return '<div class="macro ' + cls + '"><div class="head"><span>' + label + '</span>' +
+      '<span class="val">' + r0(val) + '<span style="color:var(--muted);font-weight:400">/' + r0(target) + '</span></span></div>' +
+      '<div class="rail"><i style="width:' + w + '%"></i></div></div>';
+  }
+  return '<div class="gauge">' +
+    '<div class="readout' + (over ? ' over' : '') + '">' +
+      '<span class="big">' + r0(Math.abs(left)) + '</span>' +
+      '<span class="unit">kcal ' + (over ? 'over' : 'left') + '</span>' +
+    '</div>' +
+    '<div class="eaten">' + r0(t.kcal) + ' eaten of ' + r0(g.kcal) + '</div>' +
+    '<div class="rail' + (over ? ' over' : '') + '"><i style="width:' + pct + '%"></i></div>' +
+    '<div class="macros">' +
+      macro("p", "Protein", t.p, g.p) +
+      macro("c", "Carbs", t.c, g.c) +
+      macro("f", "Fat", t.f, g.f) +
+    '</div></div>';
+}
+
+function viewToday() {
+  var entries = dayLog(day);
+  var isToday = day === todayKey();
+  var h = '<div class="datenav">' +
+      '<button class="nav-arrow" data-action="day" data-n="-1" aria-label="Previous day">‹</button>' +
+      '<div><div class="day">' + prettyDay(day) + '</div><div class="sub">' + day + '</div></div>' +
+      '<button class="nav-arrow" data-action="day" data-n="1" aria-label="Next day"' + (isToday ? " disabled" : "") + '>›</button>' +
+      '<div class="spacer"></div>' +
+      (isToday ? '' : '<button class="textbtn" data-action="day-today">Back to today</button>') +
+    '</div>';
+
+  h += gaugeHTML();
+  h += '<div style="margin-top:14px"><button class="btn block" data-action="open-add">+ Log food</button></div>';
+
+  var quick = S.batches.slice(0, 6);
+  if (quick.length) {
+    h += '<div class="chipbar" style="margin-top:12px">';
+    quick.forEach(function (b) {
+      h += '<button class="quick" data-action="quick-log" data-id="' + b.id + '">' +
+           esc(b.name) + ' · 1 ' + esc(b.yieldUnit) + '</button>';
+    });
+    h += '</div>';
+  }
+
+  h += '<h2>Logged (' + entries.length + ')</h2>';
+  if (!entries.length) {
+    h += '<div class="empty"><b>Nothing logged yet</b>Tap “Log food” to search your batches and foods.</div>';
+  } else {
+    entries.slice().reverse().forEach(function (e) {
+      h += '<div class="row"><div class="grow">' +
+        '<div class="name">' + esc(e.name) + '</div>' +
+        '<div class="meta">' + esc(e.qtyLabel) + '</div>' + macroDots(e) +
+        '</div><div class="kcal">' + r0(e.kcal) + '</div>' +
+        '<button class="x" data-action="del-entry" data-id="' + e.id + '" aria-label="Remove">✕</button></div>';
+    });
+  }
+  view.innerHTML = h;
+}
+
+function viewBatches() {
+  var h = '<h2 style="margin-top:8px">Batch cooking</h2>' +
+    '<p class="hint">Log everything that went into the pot once. Set how many cups or servings it made. Then log a portion in two taps.</p>' +
+    '<button class="btn block" data-action="new-batch">+ New batch</button>';
+
+  if (!S.batches.length) {
+    h += '<div class="empty" style="margin-top:14px"><b>No batches yet</b>Chili, overnight oats, a tray of chicken — anything you cook once and eat all week.</div>';
+  } else {
+    h += '<h2>Your batches</h2>';
+    S.batches.forEach(function (b) {
+      var per = batchPerUnit(b);
+      var g = b.yieldQty > 0 ? Math.round(cookedGrams(b) / b.yieldQty) : 0;
+      h += '<div class="row"><button class="grow" data-action="edit-batch" data-id="' + b.id + '" style="background:none;border:0;padding:0">' +
+        '<div class="name">' + esc(b.name) + '</div>' +
+        '<div class="meta">' + r0(per.kcal) + ' kcal per ' + esc(b.yieldUnit) +
+          (g ? ' · ~' + g + ' g' : '') + ' · makes ' + r1(b.yieldQty) + '</div>' +
+        macroDots(per) + '</button>' +
+        '<button class="btn small" data-action="quick-log" data-id="' + b.id + '">Log 1</button></div>';
+    });
+  }
+  view.innerHTML = h;
+}
+
+function viewFoods() {
+  var h = '<h2 style="margin-top:8px">Food library</h2>' +
+    '<p class="hint">Ingredients and packaged foods, stored per 100 g. These are the building blocks for batches.</p>' +
+    '<button class="btn block" data-action="new-food">+ New food</button>' +
+    '<label class="field" style="margin-top:12px"><input type="search" id="foodfilter" placeholder="Search foods" value=""></label>' +
+    '<div id="foodlist"></div>';
+  view.innerHTML = h;
+  renderFoodList("");
+  var fi = document.getElementById("foodfilter");
+  fi.addEventListener("input", function () { renderFoodList(fi.value); });
+}
+
+function renderFoodList(q) {
+  q = (q || "").toLowerCase();
+  var list = S.foods.filter(function (f) { return f.name.toLowerCase().indexOf(q) > -1; });
+  var h = "";
+  list.forEach(function (f) {
+    h += '<div class="row"><button class="grow" data-action="edit-food" data-id="' + f.id + '" style="background:none;border:0;padding:0">' +
+      '<div class="name">' + esc(f.name) + '</div>' +
+      '<div class="meta">' + r0(f.kcal) + ' kcal / 100 g' +
+        (f.unitGrams ? ' · 1 ' + esc(f.unitName) + ' = ' + r1(f.unitGrams) + ' g' : '') + '</div>' +
+      macroDots(f) + '</button></div>';
+  });
+  if (!list.length) h = '<div class="empty">No match. Tap “New food” to add it.</div>';
+  document.getElementById("foodlist").innerHTML = h;
+}
+
+/* ---------------------------------------------------------------
+   sheet
+----------------------------------------------------------------*/
+var sheet = document.getElementById("sheet");
+var sheetBg = document.getElementById("sheetbg");
+var sheetBody = document.getElementById("sheetbody");
+var sheetTitle = document.getElementById("sheettitle");
+
+function openSheet(title, html) {
+  sheetTitle.textContent = title;
+  sheetBody.innerHTML = html;
+  sheet.classList.add("open");
+  sheetBg.classList.add("open");
+  sheet.setAttribute("aria-hidden", "false");
+  document.body.style.overflow = "hidden";
+  sheet.scrollTop = 0;
+}
+function closeSheet() {
+  sheet.classList.remove("open");
+  sheetBg.classList.remove("open");
+  sheet.setAttribute("aria-hidden", "true");
+  document.body.style.overflow = "";
+  picked = null;
+}
+sheetBg.addEventListener("click", closeSheet);
+document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeSheet(); });
+
+/* ------- add / log sheet ------- */
+function openAdd() {
+  picked = null;
+  openSheet("Log food", '<label class="field"><input type="search" id="q" placeholder="Search batches and foods" autocomplete="off"></label>' +
+    '<div id="results" class="results"></div>' +
+    '<div id="amount"></div>' +
+    '<h2 style="margin-top:18px">Not in the list?</h2>' +
+    '<div class="grid4">' +
+      '<input type="number" id="mkcal" placeholder="kcal" inputmode="decimal">' +
+      '<input type="number" id="mp" placeholder="P" inputmode="decimal">' +
+      '<input type="number" id="mc" placeholder="C" inputmode="decimal">' +
+      '<input type="number" id="mf" placeholder="F" inputmode="decimal">' +
+    '</div>' +
+    '<label class="field" style="margin-top:8px"><input type="text" id="mname" placeholder="Name (e.g. burrito out)"></label>' +
+    '<button class="btn ghost block" data-action="manual-log">Log these numbers</button>');
+  var q = document.getElementById("q");
+  q.addEventListener("input", function () {
+    picked = null;
+    document.getElementById("amount").innerHTML = "";
+    renderResults(q.value);
+  });
+  renderResults("");
+  setTimeout(function () { q.focus(); }, 60);
+}
+
+function renderResults(q) {
+  q = (q || "").toLowerCase();
+  var h = "";
+  var bs = S.batches.filter(function (b) { return b.name.toLowerCase().indexOf(q) > -1; });
+  var fs = S.foods.filter(function (f) { return f.name.toLowerCase().indexOf(q) > -1; }).slice(0, 40);
+  if (bs.length) {
+    h += '<h2 style="margin-top:4px">Batches</h2>';
+    bs.forEach(function (b) {
+      var per = batchPerUnit(b);
+      h += '<button class="row" data-action="pick" data-kind="batch" data-id="' + b.id + '">' +
+        '<div class="grow"><div class="name">' + esc(b.name) + '</div>' +
+        '<div class="meta">' + r0(per.kcal) + ' kcal per ' + esc(b.yieldUnit) + '</div></div></button>';
+    });
+  }
+  h += '<h2' + (bs.length ? '' : ' style="margin-top:4px"') + '>Foods</h2>';
+  fs.forEach(function (f) {
+    h += '<button class="row" data-action="pick" data-kind="food" data-id="' + f.id + '">' +
+      '<div class="grow"><div class="name">' + esc(f.name) + '</div>' +
+      '<div class="meta">' + r0(f.kcal) + ' kcal / 100 g</div></div></button>';
+  });
+  if (!bs.length && !fs.length) h += '<div class="empty">Nothing found. Use the numbers box below.</div>';
+  document.getElementById("results").innerHTML = h;
+}
+
+function pick(kind, id) {
+  var opts = [], name = "";
+  if (kind === "batch") {
+    var b = byId(S.batches, id);
+    if (!b) return;
+    name = b.name;
+    var per = batchPerUnit(b);
+    var gPer = b.yieldQty > 0 ? cookedGrams(b) / b.yieldQty : 0;
+    opts.push({ label: b.yieldUnit, per: per });
+    if (gPer > 0) opts.push({ label: "g", per: scale(per, 1 / gPer) });
+    opts.push({ label: "whole batch", per: scale(per, b.yieldQty || 1) });
+  } else {
+    var f = byId(S.foods, id);
+    if (!f) return;
+    name = f.name;
+    opts.push({ label: "g", per: scale(f, 1 / 100) });
+    if (f.unitGrams > 0) opts.unshift({ label: f.unitName, per: scale(f, f.unitGrams / 100) });
+    opts.push({ label: "oz", per: scale(f, 28.35 / 100) });
+  }
+  picked = { kind: kind, id: id, name: name, opts: opts };
+  var sel = "";
+  opts.forEach(function (o, i) { sel += '<option value="' + i + '">' + esc(o.label) + '</option>'; });
+  var defQty = opts[0].label === "g" ? 100 : 1;
+  document.getElementById("results").innerHTML = "";
+  document.getElementById("q").value = "";
+  document.getElementById("amount").innerHTML =
+    '<div class="panel" style="margin-bottom:12px"><div class="cap">' + esc(name) + '</div>' +
+    '<div style="padding:12px"><div class="grid2">' +
+      '<input type="number" id="qty" value="' + defQty + '" step="0.25" inputmode="decimal" aria-label="Amount">' +
+      '<select id="unit" aria-label="Unit">' + sel + '</select>' +
+    '</div><div id="preview" class="meta" style="color:var(--muted);font-size:13.5px;margin:10px 0 12px"></div>' +
+    '<div class="split"><button class="btn ghost" data-action="cancel-pick">Back</button>' +
+    '<button class="btn" data-action="confirm-log">Log it</button></div></div></div>';
+  var qty = document.getElementById("qty"), unit = document.getElementById("unit");
+  function prev() {
+    var m = scale(picked.opts[+unit.value].per, num(qty.value));
+    document.getElementById("preview").textContent =
+      r0(m.kcal) + " kcal · " + r1(m.p) + " g protein · " + r1(m.c) + " g carbs · " + r1(m.f) + " g fat";
+  }
+  qty.addEventListener("input", prev);
+  unit.addEventListener("change", function () {
+    qty.value = picked.opts[+unit.value].label === "g" ? 100 : 1;
+    prev();
+  });
+  prev();
+  setTimeout(function () { qty.select(); }, 60);
+}
+
+function confirmLog() {
+  if (!picked) return;
+  var qty = num(document.getElementById("qty").value);
+  var o = picked.opts[+document.getElementById("unit").value];
+  if (qty <= 0) return;
+  var m = scale(o.per, qty);
+  addEntry(picked.name, r1(qty) + " " + o.label, m);
+  closeSheet();
+  tab = "today"; render();
+}
+
+function addEntry(name, qtyLabel, m) {
+  S.log.push({
+    id: uid(), date: day, name: name, qtyLabel: qtyLabel,
+    kcal: m.kcal, p: m.p, c: m.c, f: m.f
+  });
+  persist();
+}
+
+function quickLog(id) {
+  var b = byId(S.batches, id);
+  if (!b) return;
+  addEntry(b.name, "1 " + b.yieldUnit, batchPerUnit(b));
+  tab = "today"; render();
+}
+
+/* ------- batch editor ------- */
+function openBatch(id) {
+  var b = id ? byId(S.batches, id) : null;
+  draft = b ? JSON.parse(JSON.stringify(b))
+            : { id: uid(), name: "", items: [], yieldQty: 4, yieldUnit: "serving", cookedGrams: 0, isNew: true };
+  renderBatchSheet();
+}
+
+function renderBatchSheet() {
+  var t = batchTotals(draft), per = batchPerUnit(draft);
+  var h = '<label class="field"><span>Name</span><input type="text" id="bname" value="' + esc(draft.name) + '" placeholder="Sunday chili"></label>';
+
+  h += '<h2 style="margin-top:8px">What went in</h2><div class="panel">';
+  if (!draft.items.length) {
+    h += '<div class="ing" style="color:var(--muted)">No ingredients yet.</div>';
+  } else {
+    draft.items.forEach(function (it, i) {
+      var f = byId(S.foods, it.foodId);
+      var m = f ? scale(f, it.grams / 100) : { kcal: 0 };
+      h += '<div class="ing"><div class="grow"><div>' + esc(f ? f.name : "missing food") + '</div>' +
+        '<div class="g">' + r1(it.grams) + ' g · ' + r0(m.kcal) + ' kcal</div></div>' +
+        '<button class="x" data-action="rm-ing" data-i="' + i + '" aria-label="Remove">✕</button></div>';
+    });
+    h += '<div class="totalline"><span>Batch total</span><b>' + r0(t.kcal) + ' kcal · ' +
+      r0(t.p) + 'p ' + r0(t.c) + 'c ' + r0(t.f) + 'f</b></div>';
+  }
+  h += '</div><button class="btn ghost block" style="margin-top:10px" data-action="add-ing">+ Add ingredient</button>';
+
+  h += '<h2>What it made</h2>' +
+    '<div class="grid2">' +
+      '<label class="field"><span>Amount</span><input type="number" id="byq" value="' + draft.yieldQty + '" step="0.5" inputmode="decimal"></label>' +
+      '<label class="field"><span>Unit</span><input type="text" id="byu" value="' + esc(draft.yieldUnit) + '" placeholder="cup"></label>' +
+    '</div>' +
+    '<label class="field"><span>Cooked weight in grams (optional — lets you log by weight)</span>' +
+    '<input type="number" id="bcg" value="' + (draft.cookedGrams || "") + '" placeholder="' + r0(t.grams) + '" inputmode="decimal"></label>';
+
+  h += '<div class="panel" style="margin-bottom:14px" id="perpanel">' + perPanelHTML() + '</div>';
+
+  h += '<div class="split"><button class="btn block" data-action="save-batch">Save batch</button></div>';
+  if (!draft.isNew) h += '<button class="btn danger block" style="margin-top:10px" data-action="del-batch">Delete batch</button>';
+
+  openSheet(draft.isNew ? "New batch" : "Edit batch", h);
+  ["bname", "byq", "byu", "bcg"].forEach(function (idd) {
+    document.getElementById(idd).addEventListener("input", function () {
+      syncDraft();
+      document.getElementById("perpanel").innerHTML = perPanelHTML();
+    });
+  });
+}
+
+function perPanelHTML() {
+  var per = batchPerUnit(draft);
+  var g = draft.yieldQty > 0 && cookedGrams(draft) > 0 ? r0(cookedGrams(draft) / draft.yieldQty) : 0;
+  return '<div class="cap">One ' + esc(draft.yieldUnit || "serving") + (g ? ' ≈ ' + g + ' g' : '') + '</div>' +
+    '<div class="per"><span class="n">' + r0(per.kcal) + '</span><span class="l">kcal · ' +
+    r1(per.p) + ' g protein · ' + r1(per.c) + ' g carbs · ' + r1(per.f) + ' g fat</span></div>';
+}
+
+function syncDraft() {
+  var n = document.getElementById("bname");
+  if (!n) return;
+  draft.name = n.value;
+  draft.yieldQty = num(document.getElementById("byq").value, 1);
+  draft.yieldUnit = document.getElementById("byu").value.trim() || "serving";
+  draft.cookedGrams = num(document.getElementById("bcg").value, 0);
+}
+
+function addIngredientUI() {
+  syncDraft();
+  var opts = S.foods.map(function (f) { return '<option value="' + f.id + '">' + esc(f.name) + '</option>'; }).join("");
+  var h = '<label class="field"><span>Ingredient</span><select id="ifood">' + opts + '</select></label>' +
+    '<div class="grid2">' +
+      '<label class="field"><span>Amount</span><input type="number" id="iamt" value="100" step="1" inputmode="decimal"></label>' +
+      '<label class="field"><span>Unit</span><select id="iunit"><option value="g">g</option><option value="oz">oz</option><option value="lb">lb</option><option value="u">unit</option></select></label>' +
+    '</div>' +
+    '<div id="ipreview" class="hint"></div>' +
+    '<div class="split"><button class="btn ghost" data-action="back-batch">Back</button>' +
+    '<button class="btn" data-action="save-ing">Add to batch</button></div>' +
+    '<button class="btn ghost block" style="margin-top:10px" data-action="new-food-inline">+ Create a new food first</button>';
+  openSheet("Add ingredient", h);
+  var fs = document.getElementById("ifood"), am = document.getElementById("iamt"), un = document.getElementById("iunit");
+  function prev() {
+    var f = byId(S.foods, fs.value);
+    var g = toGrams(num(am.value), un.value, f);
+    var m = scale(f, g / 100);
+    document.getElementById("ipreview").textContent =
+      r0(g) + " g → " + r0(m.kcal) + " kcal · " + r1(m.p) + "p " + r1(m.c) + "c " + r1(m.f) + "f" +
+      (un.value === "u" && !f.unitGrams ? "  (no unit weight saved for this food)" : "");
+  }
+  [fs, am, un].forEach(function (el) { el.addEventListener("input", prev); el.addEventListener("change", prev); });
+  prev();
+}
+function toGrams(amt, unit, food) {
+  if (unit === "oz") return amt * 28.35;
+  if (unit === "lb") return amt * 453.6;
+  if (unit === "u") return amt * (food && food.unitGrams ? food.unitGrams : 0);
+  return amt;
+}
+
+/* ------- food editor ------- */
+function openFood(id, backTo) {
+  var f = id ? byId(S.foods, id) : null;
+  var d = f || { id: "", name: "", kcal: "", p: "", c: "", f: "", unitName: "", unitGrams: "" };
+  var h = '<label class="field"><span>Name</span><input type="text" id="fname" value="' + esc(d.name) + '" placeholder="Rotisserie chicken"></label>' +
+    '<p class="hint">Enter the numbers per 100 g — that is what most labels and databases give.</p>' +
+    '<div class="grid4">' +
+      '<input type="number" id="fk" value="' + d.kcal + '" placeholder="kcal" inputmode="decimal" aria-label="Calories per 100 g">' +
+      '<input type="number" id="fp" value="' + d.p + '" placeholder="P" inputmode="decimal" aria-label="Protein">' +
+      '<input type="number" id="fc" value="' + d.c + '" placeholder="C" inputmode="decimal" aria-label="Carbs">' +
+      '<input type="number" id="ff" value="' + d.f + '" placeholder="F" inputmode="decimal" aria-label="Fat">' +
+    '</div>' +
+    '<div class="grid2" style="margin-top:12px">' +
+      '<label class="field"><span>Unit name (optional)</span><input type="text" id="fun" value="' + esc(d.unitName) + '" placeholder="slice"></label>' +
+      '<label class="field"><span>Grams in that unit</span><input type="number" id="fug" value="' + (d.unitGrams || "") + '" placeholder="30" inputmode="decimal"></label>' +
+    '</div>' +
+    '<button class="btn block" data-action="save-food" data-id="' + (d.id || "") + '" data-back="' + (backTo || "") + '">Save food</button>';
+  if (f) h += '<button class="btn danger block" style="margin-top:10px" data-action="del-food" data-id="' + f.id + '">Delete food</button>';
+  openSheet(f ? "Edit food" : "New food", h);
+}
+
+function saveFood(id, backTo) {
+  var name = document.getElementById("fname").value.trim();
+  if (!name) { document.getElementById("fname").focus(); return; }
+  var obj = {
+    id: id || uid(),
+    name: name,
+    kcal: num(document.getElementById("fk").value),
+    p: num(document.getElementById("fp").value),
+    c: num(document.getElementById("fc").value),
+    f: num(document.getElementById("ff").value),
+    unitName: document.getElementById("fun").value.trim(),
+    unitGrams: num(document.getElementById("fug").value)
+  };
+  var ex = byId(S.foods, obj.id);
+  if (ex) { for (var k in obj) ex[k] = obj[k]; }
+  else S.foods.unshift(obj);
+  persist();
+  if (backTo === "ing") { addIngredientUI(); return; }
+  closeSheet();
+  render();
+}
+
+/* ------- settings ------- */
+function openSettings() {
+  var t = S.targets;
+  var h = '<h2 style="margin-top:0">Daily targets</h2>' +
+    '<label class="field"><span>Calories</span><input type="number" id="tk" value="' + t.kcal + '" inputmode="decimal"></label>' +
+    '<div class="grid2">' +
+      '<label class="field"><span>Protein (g)</span><input type="number" id="tp" value="' + t.p + '" inputmode="decimal"></label>' +
+      '<label class="field"><span>Carbs (g)</span><input type="number" id="tc" value="' + t.c + '" inputmode="decimal"></label>' +
+    '</div>' +
+    '<label class="field"><span>Fat (g)</span><input type="number" id="tf" value="' + t.f + '" inputmode="decimal"></label>' +
+    '<button class="btn block" data-action="save-targets">Save targets</button>' +
+    '<h2>Your data</h2>' +
+    '<p class="hint">Everything is stored in this browser only. Nothing is uploaded anywhere. Export before you clear your browser data or switch phones.</p>' +
+    '<div class="split"><button class="btn ghost" data-action="export">Export file</button>' +
+    '<button class="btn ghost" data-action="import">Import file</button></div>' +
+    '<input type="file" id="importfile" accept="application/json,.json" style="display:none">' +
+    '<button class="btn danger block" style="margin-top:24px" data-action="reset">Erase everything</button>';
+  openSheet("Settings", h);
+  document.getElementById("importfile").addEventListener("change", doImport);
+}
+
+function doExport() {
+  var blob = new Blob([JSON.stringify(S, null, 2)], { type: "application/json" });
+  var a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "batch-macros-" + todayKey() + ".json";
+  a.click();
+  setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+}
+function doImport(e) {
+  var file = e.target.files[0];
+  if (!file) return;
+  var fr = new FileReader();
+  fr.onload = function () {
+    try {
+      var data = JSON.parse(fr.result);
+      if (!data.foods || !data.log) throw new Error("bad file");
+      S = data;
+      persist(); closeSheet(); render();
+    } catch (err) {
+      alert("That file could not be read. It needs to be an export from this app.");
+    }
+  };
+  fr.readAsText(file);
+}
+
+/* ---------------------------------------------------------------
+   events
+----------------------------------------------------------------*/
+document.addEventListener("click", function (e) {
+  var el = e.target.closest("[data-action],[data-tab]");
+  if (!el) return;
+  var a = el.dataset.action;
+
+  if (el.dataset.tab) { tab = el.dataset.tab; render(); return; }
+
+  switch (a) {
+    case "day": day = shiftDay(day, +el.dataset.n); if (day > todayKey()) day = todayKey(); render(); break;
+    case "day-today": day = todayKey(); render(); break;
+    case "open-add": openAdd(); break;
+    case "close-sheet": closeSheet(); break;
+    case "pick": pick(el.dataset.kind, el.dataset.id); break;
+    case "cancel-pick": openAdd(); break;
+    case "confirm-log": confirmLog(); break;
+    case "quick-log": quickLog(el.dataset.id); break;
+    case "del-entry":
+      S.log = S.log.filter(function (x) { return x.id !== el.dataset.id; });
+      persist(); render(); break;
+    case "manual-log": {
+      var kc = num(document.getElementById("mkcal").value);
+      var nm = document.getElementById("mname").value.trim() || "Quick entry";
+      if (kc <= 0) { document.getElementById("mkcal").focus(); return; }
+      addEntry(nm, "entered by hand", {
+        kcal: kc,
+        p: num(document.getElementById("mp").value),
+        c: num(document.getElementById("mc").value),
+        f: num(document.getElementById("mf").value)
+      });
+      closeSheet(); tab = "today"; render(); break;
+    }
+    case "new-batch": openBatch(null); break;
+    case "edit-batch": openBatch(el.dataset.id); break;
+    case "back-batch": renderBatchSheet(); break;
+    case "add-ing": addIngredientUI(); break;
+    case "rm-ing": syncDraft(); draft.items.splice(+el.dataset.i, 1); renderBatchSheet(); break;
+    case "save-ing": {
+      var fid = document.getElementById("ifood").value;
+      var g = toGrams(num(document.getElementById("iamt").value), document.getElementById("iunit").value, byId(S.foods, fid));
+      if (g > 0) draft.items.push({ foodId: fid, grams: g });
+      renderBatchSheet(); break;
+    }
+    case "save-batch": {
+      syncDraft();
+      if (!draft.name.trim()) { document.getElementById("bname").focus(); return; }
+      var copy = JSON.parse(JSON.stringify(draft));
+      delete copy.isNew;
+      var ex = byId(S.batches, copy.id);
+      if (ex) { for (var k in copy) ex[k] = copy[k]; }
+      else S.batches.unshift(copy);
+      persist(); closeSheet(); tab = "cook"; render(); break;
+    }
+    case "del-batch":
+      if (confirm("Delete this batch? Meals you already logged from it stay in your history.")) {
+        S.batches = S.batches.filter(function (x) { return x.id !== draft.id; });
+        persist(); closeSheet(); render();
+      }
+      break;
+    case "new-food": openFood(null, ""); break;
+    case "new-food-inline": openFood(null, "ing"); break;
+    case "edit-food": openFood(el.dataset.id, ""); break;
+    case "save-food": saveFood(el.dataset.id, el.dataset.back); break;
+    case "del-food":
+      if (confirm("Delete this food? Batches using it will lose that ingredient.")) {
+        S.foods = S.foods.filter(function (x) { return x.id !== el.dataset.id; });
+        persist(); closeSheet(); render();
+      }
+      break;
+    case "open-settings": openSettings(); break;
+    case "save-targets":
+      S.targets = {
+        kcal: num(document.getElementById("tk").value, 2000),
+        p: num(document.getElementById("tp").value, 150),
+        c: num(document.getElementById("tc").value, 200),
+        f: num(document.getElementById("tf").value, 65)
+      };
+      persist(); closeSheet(); tab = "today"; render(); break;
+    case "export": doExport(); break;
+    case "import": document.getElementById("importfile").click(); break;
+    case "reset":
+      if (confirm("Erase all batches, foods and logs? This cannot be undone.")) {
+        S = { targets: { kcal: 2000, p: 150, c: 200, f: 65 }, foods: seedFoods(), batches: [], log: [] };
+        persist(); closeSheet(); render();
+      }
+      break;
+  }
+});
+
+if (!canPersist) {
+  document.getElementById("storagewarn").innerHTML =
+    '<div class="banner">Preview mode: this frame blocks browser storage, so entries vanish on reload. Once the file is on GitHub Pages, everything saves.</div>';
+}
+
+render();
+})();
+</script>
+</body>
+</html>

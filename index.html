@@ -4,29 +4,82 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Batch — calories &amp; macros for people who cook once</title>
-<meta name="theme-color" content="#0f2a2e">
+<meta name="theme-color" content="#0f2a2e" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f2f5f0" media="(prefers-color-scheme: light)">
 <meta name="description" content="Log a batch once, then log a cup of it. Calorie and macro tracking built around cooking in bulk.">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Batch">
-<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
 <style>
   :root{
+    color-scheme:dark;
     --bg:#0f2a2e;
     --surface:#16383d;
     --surface-2:#1d454b;
     --line:#2a5f66;
+    --line-strong:#3d7d84;
     --chalk:#eef3ef;
     --muted:#93b1b1;
+    --placeholder:#6f9296;
     --protein:#ff7a5c;
     --carbs:#f0c04a;
     --fat:#86c46b;
     --danger:#ff7a5c;
+    --btn-bg:#eef3ef;
+    --btn-fg:#0f2a2e;
+    --btn-bg-hover:#ffffff;
+    --tabbar:rgba(15,42,46,.94);
+    --scrim:rgba(6,20,22,.72);
     --r:14px;
     --pad:16px;
     font-synthesis-weight:none;
+  }
+  /* light palette: same enamel identity, flipped. Follows iOS appearance
+     unless the reader forces one in Settings (data-theme on <html>). */
+  @media (prefers-color-scheme: light){
+    html:not([data-theme=dark]){
+      color-scheme:light;
+      --bg:#f2f5f0;
+      --surface:#ffffff;
+      --surface-2:#e8eee9;
+      --line:#d2ded6;
+      --line-strong:#8fada4;
+      --chalk:#123230;
+      --muted:#5d7c76;
+      --placeholder:#8aa39c;
+      --protein:#c8391f;
+      --carbs:#9a6c00;
+      --fat:#38801f;
+      --danger:#c8391f;
+      --btn-bg:#123230;
+      --btn-fg:#f2f5f0;
+      --btn-bg-hover:#0b2422;
+      --tabbar:rgba(242,245,240,.94);
+      --scrim:rgba(18,50,48,.4);
+    }
+  }
+  html[data-theme=light]{
+    color-scheme:light;
+    --bg:#f2f5f0;
+    --surface:#ffffff;
+    --surface-2:#e8eee9;
+    --line:#d2ded6;
+    --line-strong:#8fada4;
+    --chalk:#123230;
+    --muted:#5d7c76;
+    --placeholder:#8aa39c;
+    --protein:#c8391f;
+    --carbs:#9a6c00;
+    --fat:#38801f;
+    --danger:#c8391f;
+    --btn-bg:#123230;
+    --btn-fg:#f2f5f0;
+    --btn-bg-hover:#0b2422;
+    --tabbar:rgba(242,245,240,.94);
+    --scrim:rgba(18,50,48,.4);
   }
   *{box-sizing:border-box}
   html,body{margin:0;padding:0}
@@ -83,7 +136,7 @@
   /* ---------- lists ---------- */
   h2{font-size:14px;font-weight:600;color:var(--muted);margin:26px 0 10px;letter-spacing:0}
   .row{display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--surface);border:1px solid var(--line);border-radius:12px;margin-bottom:8px;text-align:left;width:100%}
-  .row:hover{border-color:#3d7d84}
+  .row:hover{border-color:var(--line-strong)}
   .row .name{font-weight:600;font-size:15.5px;line-height:1.25}
   .row .meta{color:var(--muted);font-size:13px;margin-top:2px}
   .row .grow{flex:1;min-width:0}
@@ -94,8 +147,8 @@
   .empty{border:1px dashed var(--line);border-radius:12px;padding:20px 16px;color:var(--muted);font-size:14.5px}
   .empty b{color:var(--chalk);display:block;font-size:15.5px;margin-bottom:4px;font-weight:600}
 
-  .btn{background:var(--chalk);color:#0f2a2e;font-weight:600;padding:13px 18px;border-radius:12px;font-size:15.5px;display:inline-flex;align-items:center;justify-content:center;gap:8px}
-  .btn:hover{background:#fff}
+  .btn{background:var(--btn-bg);color:var(--btn-fg);font-weight:600;padding:13px 18px;border-radius:12px;font-size:15.5px;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+  .btn:hover{background:var(--btn-bg-hover)}
   .btn.block{width:100%}
   .btn.ghost{background:transparent;color:var(--chalk);border:1px solid var(--line)}
   .btn.ghost:hover{border-color:var(--chalk);background:transparent}
@@ -111,7 +164,7 @@
     width:100%;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;
     padding:11px 12px;font-size:16px;color:var(--chalk);appearance:none;-webkit-appearance:none;
   }
-  input::placeholder{color:#6f9296}
+  input::placeholder{color:var(--placeholder)}
   select{background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);background-position:calc(100% - 17px) 50%,calc(100% - 12px) 50%;background-size:5px 5px;background-repeat:no-repeat;padding-right:34px}
   input:focus,select:focus{border-color:var(--chalk);outline:none}
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -119,7 +172,7 @@
   .grid4 input{padding:11px 8px;text-align:center}
 
   /* ---------- sheet ---------- */
-  .sheet-bg{position:fixed;inset:0;background:rgba(6,20,22,.72);z-index:40;display:none}
+  .sheet-bg{position:fixed;inset:0;background:var(--scrim);z-index:40;display:none}
   .sheet-bg.open{display:block}
   .sheet{position:fixed;left:0;right:0;bottom:0;z-index:41;background:var(--bg);border-top:1px solid var(--line);
     border-radius:20px 20px 0 0;max-height:92vh;overflow-y:auto;transform:translateY(100%);
@@ -131,7 +184,7 @@
   @media (prefers-reduced-motion:reduce){.sheet,.rail>i{transition:none}}
 
   /* ---------- tabs ---------- */
-  .tabs{position:fixed;left:0;right:0;bottom:0;z-index:30;background:rgba(15,42,46,.94);backdrop-filter:blur(10px);
+  .tabs{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--tabbar);backdrop-filter:blur(10px);
     border-top:1px solid var(--line);display:flex;padding:8px 8px calc(8px + env(safe-area-inset-bottom))}
   .tabs button{flex:1;padding:8px 4px;border-radius:10px;color:var(--muted);font-size:12.5px;font-weight:600;display:grid;gap:3px;justify-items:center}
   .tabs button .ic{font-size:18px;line-height:1}
@@ -157,6 +210,9 @@
   .split .btn{flex:1}
   .totalline{display:flex;justify-content:space-between;padding:12px;font-size:14px;border-top:1px solid var(--line);color:var(--muted)}
   .totalline b{color:var(--chalk);font-weight:600}
+  .seg{display:flex;gap:6px;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:4px;margin-bottom:20px}
+  .seg button{flex:1;padding:9px 6px;border-radius:9px;font-size:14px;font-weight:600;color:var(--muted)}
+  .seg button[aria-pressed=true]{background:var(--surface);color:var(--chalk)}
 </style>
 </head>
 <body>
@@ -256,6 +312,7 @@ function seedFoods() {
 }
 
 var S = load() || {
+  theme: "auto",
   targets: { kcal: 2000, p: 150, c: 200, f: 65 },
   foods: seedFoods(),
   batches: [],
@@ -264,6 +321,7 @@ var S = load() || {
 if (!S.foods || !S.foods.length) S.foods = seedFoods();
 if (!S.log) S.log = [];
 if (!S.batches) S.batches = [];
+if (!S.theme) S.theme = "auto";
 
 var tab = "today";
 var day = todayKey();
@@ -332,6 +390,27 @@ function dayTotals(key) {
   return dayLog(key).reduce(function (a, e) {
     a.kcal += e.kcal; a.p += e.p; a.c += e.c; a.f += e.f; return a;
   }, { kcal: 0, p: 0, c: 0, f: 0 });
+}
+
+/* ---------------------------------------------------------------
+   appearance — follows the phone unless the reader forces one
+----------------------------------------------------------------*/
+function applyTheme() {
+  var t = S.theme || "auto";
+  var root = document.documentElement;
+  if (t === "auto") root.removeAttribute("data-theme");
+  else root.setAttribute("data-theme", t);
+
+  // keep Safari's toolbar tint in step with a forced theme
+  var forced = document.getElementById("forcedtheme");
+  if (t === "auto") { if (forced) forced.parentNode.removeChild(forced); return; }
+  if (!forced) {
+    forced = document.createElement("meta");
+    forced.id = "forcedtheme";
+    forced.setAttribute("name", "theme-color");
+    document.head.insertBefore(forced, document.head.firstChild);
+  }
+  forced.setAttribute("content", t === "light" ? "#f2f5f0" : "#0f2a2e");
 }
 
 /* ---------------------------------------------------------------
@@ -757,7 +836,13 @@ function saveFood(id, backTo) {
 /* ------- settings ------- */
 function openSettings() {
   var t = S.targets;
-  var h = '<h2 style="margin-top:0">Daily targets</h2>' +
+  var th = S.theme || "auto";
+  function seg(v, label) {
+    return '<button data-action="theme" data-v="' + v + '" aria-pressed="' + (th === v ? "true" : "false") + '">' + label + '</button>';
+  }
+  var h = '<h2 style="margin-top:0">Appearance</h2>' +
+    '<div class="seg">' + seg("auto", "Match phone") + seg("light", "Light") + seg("dark", "Dark") + '</div>' +
+    '<h2>Daily targets</h2>' +
     '<label class="field"><span>Calories</span><input type="number" id="tk" value="' + t.kcal + '" inputmode="decimal"></label>' +
     '<div class="grid2">' +
       '<label class="field"><span>Protein (g)</span><input type="number" id="tp" value="' + t.p + '" inputmode="decimal"></label>' +
@@ -792,7 +877,8 @@ function doImport(e) {
       var data = JSON.parse(fr.result);
       if (!data.foods || !data.log) throw new Error("bad file");
       S = data;
-      persist(); closeSheet(); render();
+      if (!S.theme) S.theme = "auto";
+      persist(); applyTheme(); closeSheet(); render();
     } catch (err) {
       alert("That file could not be read. It needs to be an export from this app.");
     }
@@ -872,6 +958,13 @@ document.addEventListener("click", function (e) {
       }
       break;
     case "open-settings": openSettings(); break;
+    case "theme":
+      S.theme = el.dataset.v;
+      persist(); applyTheme();
+      el.parentNode.querySelectorAll("button").forEach(function (b2) {
+        b2.setAttribute("aria-pressed", b2.dataset.v === S.theme ? "true" : "false");
+      });
+      break;
     case "save-targets":
       S.targets = {
         kcal: num(document.getElementById("tk").value, 2000),
@@ -884,7 +977,7 @@ document.addEventListener("click", function (e) {
     case "import": document.getElementById("importfile").click(); break;
     case "reset":
       if (confirm("Erase all batches, foods and logs? This cannot be undone.")) {
-        S = { targets: { kcal: 2000, p: 150, c: 200, f: 65 }, foods: seedFoods(), batches: [], log: [] };
+        S = { theme: S.theme, targets: { kcal: 2000, p: 150, c: 200, f: 65 }, foods: seedFoods(), batches: [], log: [] };
         persist(); closeSheet(); render();
       }
       break;
@@ -896,6 +989,7 @@ if (!canPersist) {
     '<div class="banner">Preview mode: this frame blocks browser storage, so entries vanish on reload. Once the file is on GitHub Pages, everything saves.</div>';
 }
 
+applyTheme();
 render();
 })();
 </script>

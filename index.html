@@ -27,6 +27,7 @@
     --protein:#ff7a5c;
     --carbs:#f0c04a;
     --fat:#86c46b;
+    --fiber:#93b7ea;
     --danger:#ff7a5c;
     --btn-bg:#eef3ef;
     --btn-fg:#0f2a2e;
@@ -53,6 +54,7 @@
       --protein:#c8391f;
       --carbs:#9a6c00;
       --fat:#38801f;
+      --fiber:#2d6ba8;
       --danger:#c8391f;
       --btn-bg:#123230;
       --btn-fg:#f2f5f0;
@@ -74,6 +76,7 @@
     --protein:#c8391f;
     --carbs:#9a6c00;
     --fat:#38801f;
+    --fiber:#2d6ba8;
     --danger:#c8391f;
     --btn-bg:#123230;
     --btn-fg:#f2f5f0;
@@ -125,13 +128,15 @@
   .rail > i{display:block;height:100%;border-radius:99px;background:var(--chalk);transition:width .35s ease}
   .rail.over > i{background:var(--protein)}
 
-  .macros{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px}
+  .macros{display:grid;grid-template-columns:repeat(2,1fr);gap:12px 14px;margin-top:16px}
+  @media (min-width:480px){.macros{grid-template-columns:repeat(4,1fr)}}
   .macro .head{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;color:var(--muted)}
   .macro .val{font-weight:600;font-size:15px;color:var(--chalk)}
   .macro .rail{height:5px;margin-top:6px}
   .macro.p .rail > i{background:var(--protein)}
   .macro.c .rail > i{background:var(--carbs)}
   .macro.f .rail > i{background:var(--fat)}
+  .macro.fb .rail > i{background:var(--fiber)}
 
   /* ---------- lists ---------- */
   h2{font-size:14px;font-weight:600;color:var(--muted);margin:26px 0 10px;letter-spacing:0}
@@ -143,7 +148,7 @@
   .row .kcal{font-weight:700;font-size:16px;white-space:nowrap}
   .dots{display:flex;gap:4px;margin-top:6px;align-items:center;font-size:12.5px;color:var(--muted)}
   .dot{width:7px;height:7px;border-radius:99px;display:inline-block}
-  .dot.p{background:var(--protein)}.dot.c{background:var(--carbs)}.dot.f{background:var(--fat)}
+  .dot.p{background:var(--protein)}.dot.c{background:var(--carbs)}.dot.f{background:var(--fat)}.dot.fb{background:var(--fiber)}
   .empty{border:1px dashed var(--line);border-radius:12px;padding:20px 16px;color:var(--muted);font-size:14.5px}
   .empty b{color:var(--chalk);display:block;font-size:15.5px;margin-bottom:4px;font-weight:600}
 
@@ -269,51 +274,51 @@ function persist() {
 ----------------------------------------------------------------*/
 // per 100 g: [kcal, protein, carbs, fat]; unit optional: [name, grams]
 var SEED = [
-  ["Chicken breast, cooked", 165, 31, 0, 3.6],
-  ["Chicken thigh, cooked", 209, 26, 0, 10.9],
-  ["Ground beef 85/15, cooked", 250, 26, 0, 15],
-  ["Salmon, cooked", 208, 20, 0, 13],
-  ["Egg", 143, 12.6, 0.7, 9.5, "egg", 50],
-  ["Greek yogurt, 2%", 73, 9.9, 3.9, 1.9],
-  ["Whole milk", 61, 3.2, 4.8, 3.3, "cup", 244],
-  ["Cheddar cheese", 403, 25, 1.3, 33],
-  ["Tofu, firm", 144, 17, 2.8, 8.7],
-  ["Olive oil", 884, 0, 0, 100, "tbsp", 13.5],
-  ["Butter", 717, 0.9, 0.1, 81, "tbsp", 14.2],
-  ["Peanut butter", 588, 25, 20, 50, "tbsp", 16],
-  ["White rice, dry", 365, 7.1, 80, 0.7, "cup", 185],
-  ["White rice, cooked", 130, 2.7, 28, 0.3, "cup", 158],
-  ["Brown rice, cooked", 123, 2.7, 25.6, 1, "cup", 195],
-  ["Pasta, dry", 371, 13, 75, 1.5],
-  ["Rolled oats, dry", 379, 13.2, 67.7, 6.5, "cup", 80],
-  ["Bread", 265, 9, 49, 3.2, "slice", 30],
-  ["Black beans, canned", 91, 6, 16.6, 0.3, "cup", 172],
-  ["Chickpeas, canned", 139, 7.1, 22.5, 2.6, "cup", 152],
-  ["Lentils, cooked", 116, 9, 20, 0.4, "cup", 198],
-  ["Potato", 77, 2, 17.5, 0.1],
-  ["Sweet potato", 86, 1.6, 20.1, 0.1],
-  ["Onion", 40, 1.1, 9.3, 0.1],
-  ["Bell pepper", 31, 1, 6, 0.3],
-  ["Broccoli", 34, 2.8, 6.6, 0.4],
-  ["Carrot", 41, 0.9, 9.6, 0.2],
-  ["Tomatoes, canned", 32, 1.6, 7.3, 0.3, "can", 400],
-  ["Banana", 89, 1.1, 22.8, 0.3, "medium", 118],
-  ["Apple", 52, 0.3, 13.8, 0.2, "medium", 182]
+  ["Chicken breast, cooked", 165, 31, 0, 3.6, 0],
+  ["Chicken thigh, cooked", 209, 26, 0, 10.9, 0],
+  ["Ground beef 85/15, cooked", 250, 26, 0, 15, 0],
+  ["Salmon, cooked", 208, 20, 0, 13, 0],
+  ["Egg", 143, 12.6, 0.7, 9.5, 0, "egg", 50],
+  ["Greek yogurt, 2%", 73, 9.9, 3.9, 1.9, 0],
+  ["Whole milk", 61, 3.2, 4.8, 3.3, 0, "cup", 244],
+  ["Cheddar cheese", 403, 25, 1.3, 33, 0],
+  ["Tofu, firm", 144, 17, 2.8, 8.7, 2.3],
+  ["Olive oil", 884, 0, 0, 100, 0, "tbsp", 13.5],
+  ["Butter", 717, 0.9, 0.1, 81, 0, "tbsp", 14.2],
+  ["Peanut butter", 588, 25, 20, 50, 6, "tbsp", 16],
+  ["White rice, dry", 365, 7.1, 80, 0.7, 1.3, "cup", 185],
+  ["White rice, cooked", 130, 2.7, 28, 0.3, 0.4, "cup", 158],
+  ["Brown rice, cooked", 123, 2.7, 25.6, 1, 1.6, "cup", 195],
+  ["Pasta, dry", 371, 13, 75, 1.5, 3.2],
+  ["Rolled oats, dry", 379, 13.2, 67.7, 6.5, 10.6, "cup", 80],
+  ["Bread", 265, 9, 49, 3.2, 2.7, "slice", 30],
+  ["Black beans, canned", 91, 6, 16.6, 0.3, 7.5, "cup", 172],
+  ["Chickpeas, canned", 139, 7.1, 22.5, 2.6, 6.4, "cup", 152],
+  ["Lentils, cooked", 116, 9, 20, 0.4, 7.9, "cup", 198],
+  ["Potato", 77, 2, 17.5, 0.1, 2.2],
+  ["Sweet potato", 86, 1.6, 20.1, 0.1, 3],
+  ["Onion", 40, 1.1, 9.3, 0.1, 1.7],
+  ["Bell pepper", 31, 1, 6, 0.3, 2.1],
+  ["Broccoli", 34, 2.8, 6.6, 0.4, 2.6],
+  ["Carrot", 41, 0.9, 9.6, 0.2, 2.8],
+  ["Tomatoes, canned", 32, 1.6, 7.3, 0.3, 1.9, "can", 400],
+  ["Banana", 89, 1.1, 22.8, 0.3, 2.6, "medium", 118],
+  ["Apple", 52, 0.3, 13.8, 0.2, 2.4, "medium", 182]
 ];
 
 function seedFoods() {
   return SEED.map(function (r, i) {
     return {
       id: "f" + i, name: r[0],
-      kcal: r[1], p: r[2], c: r[3], f: r[4],
-      unitName: r[5] || "", unitGrams: r[6] || 0
+      kcal: r[1], p: r[2], c: r[3], f: r[4], fib: r[5] || 0,
+      unitName: r[6] || "", unitGrams: r[7] || 0
     };
   });
 }
 
 var S = load() || {
   theme: "auto",
-  targets: { kcal: 2000, p: 150, c: 200, f: 65 },
+  targets: { kcal: 2000, p: 150, c: 200, f: 65, fib: 30 },
   foods: seedFoods(),
   batches: [],
   log: []
@@ -322,6 +327,23 @@ if (!S.foods || !S.foods.length) S.foods = seedFoods();
 if (!S.log) S.log = [];
 if (!S.batches) S.batches = [];
 if (!S.theme) S.theme = "auto";
+if (!S.targets.fib) S.targets.fib = 30;
+
+/* migrate v1 batches: ingredients used to point at the food library and
+   store grams. They are plain typed numbers now, so bake them in once. */
+S.batches.forEach(function (b) {
+  (b.items || []).forEach(function (it, i) {
+    if (it.foodId === undefined) return;
+    var food = byId(S.foods, it.foodId);
+    var m = food ? scale(food, it.grams / 100) : { kcal: 0, p: 0, c: 0, f: 0, fib: 0 };
+    b.items[i] = {
+      name: food ? food.name : "ingredient",
+      note: r0(it.grams) + " g",
+      kcal: m.kcal, p: m.p, c: m.c, f: m.f, fib: m.fib || 0
+    };
+  });
+  if (!b.cookedGrams) b.cookedGrams = 0;
+});
 
 var tab = "today";
 var day = todayKey();
@@ -359,37 +381,39 @@ function esc(s) {
 function num(v, d) { var n = parseFloat(v); return isNaN(n) ? (d || 0) : n; }
 function byId(list, id) { for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i]; return null; }
 function macroDots(m) {
-  return '<div class="dots"><span class="dot p"></span>' + r1(m.p) + 'p' +
-         '<span class="dot c" style="margin-left:8px"></span>' + r1(m.c) + 'c' +
-         '<span class="dot f" style="margin-left:8px"></span>' + r1(m.f) + 'f</div>';
+  var h = '<div class="dots"><span class="dot p"></span>' + r1(m.p) + 'p' +
+          '<span class="dot c" style="margin-left:8px"></span>' + r1(m.c) + 'c' +
+          '<span class="dot f" style="margin-left:8px"></span>' + r1(m.f) + 'f';
+  if ((m.fib || 0) > 0) h += '<span class="dot fb" style="margin-left:8px"></span>' + r1(m.fib) + ' fib';
+  return h + '</div>';
 }
 function scale(src, factor) {
-  return { kcal: src.kcal * factor, p: src.p * factor, c: src.c * factor, f: src.f * factor };
+  return {
+    kcal: (src.kcal || 0) * factor, p: (src.p || 0) * factor,
+    c: (src.c || 0) * factor, f: (src.f || 0) * factor, fib: (src.fib || 0) * factor
+  };
 }
 
-/* batch maths: totals of all ingredients, then per one yield unit */
+/* batch maths: add up what you typed in, then divide by the yield */
 function batchTotals(b) {
-  var t = { kcal: 0, p: 0, c: 0, f: 0, grams: 0 };
+  var t = { kcal: 0, p: 0, c: 0, f: 0, fib: 0 };
   (b.items || []).forEach(function (it) {
-    var food = byId(S.foods, it.foodId);
-    if (!food) return;
-    var m = scale(food, it.grams / 100);
-    t.kcal += m.kcal; t.p += m.p; t.c += m.c; t.f += m.f; t.grams += it.grams;
+    t.kcal += it.kcal || 0; t.p += it.p || 0; t.c += it.c || 0;
+    t.f += it.f || 0; t.fib += it.fib || 0;
   });
   return t;
 }
 function batchPerUnit(b) {
-  var t = batchTotals(b);
-  var n = b.yieldQty > 0 ? b.yieldQty : 1;
-  return { kcal: t.kcal / n, p: t.p / n, c: t.c / n, f: t.f / n };
+  return scale(batchTotals(b), 1 / (b.yieldQty > 0 ? b.yieldQty : 1));
 }
-function cookedGrams(b) { return b.cookedGrams > 0 ? b.cookedGrams : batchTotals(b).grams; }
+function cookedGrams(b) { return b.cookedGrams > 0 ? b.cookedGrams : 0; }
 
 function dayLog(key) { return S.log.filter(function (e) { return e.date === key; }); }
 function dayTotals(key) {
   return dayLog(key).reduce(function (a, e) {
-    a.kcal += e.kcal; a.p += e.p; a.c += e.c; a.f += e.f; return a;
-  }, { kcal: 0, p: 0, c: 0, f: 0 });
+    a.kcal += e.kcal || 0; a.p += e.p || 0; a.c += e.c || 0;
+    a.f += e.f || 0; a.fib += e.fib || 0; return a;
+  }, { kcal: 0, p: 0, c: 0, f: 0, fib: 0 });
 }
 
 /* ---------------------------------------------------------------
@@ -449,6 +473,7 @@ function gaugeHTML() {
       macro("p", "Protein", t.p, g.p) +
       macro("c", "Carbs", t.c, g.c) +
       macro("f", "Fat", t.f, g.f) +
+      macro("fb", "Fiber", t.fib, g.fib) +
     '</div></div>';
 }
 
@@ -575,13 +600,14 @@ function openAdd() {
     '<div id="results" class="results"></div>' +
     '<div id="amount"></div>' +
     '<h2 style="margin-top:18px">Not in the list?</h2>' +
+    '<label class="field"><input type="text" id="mname" placeholder="Name (e.g. burrito out)"></label>' +
+    '<label class="field"><input type="number" id="mkcal" placeholder="Calories" inputmode="decimal"></label>' +
     '<div class="grid4">' +
-      '<input type="number" id="mkcal" placeholder="kcal" inputmode="decimal">' +
-      '<input type="number" id="mp" placeholder="P" inputmode="decimal">' +
-      '<input type="number" id="mc" placeholder="C" inputmode="decimal">' +
-      '<input type="number" id="mf" placeholder="F" inputmode="decimal">' +
+      '<input type="number" id="mp" placeholder="P" inputmode="decimal" aria-label="Protein">' +
+      '<input type="number" id="mc" placeholder="C" inputmode="decimal" aria-label="Carbs">' +
+      '<input type="number" id="mf" placeholder="F" inputmode="decimal" aria-label="Fat">' +
+      '<input type="number" id="mfb" placeholder="Fib" inputmode="decimal" aria-label="Fiber">' +
     '</div>' +
-    '<label class="field" style="margin-top:8px"><input type="text" id="mname" placeholder="Name (e.g. burrito out)"></label>' +
     '<button class="btn ghost block" data-action="manual-log">Log these numbers</button>');
   var q = document.getElementById("q");
   q.addEventListener("input", function () {
@@ -654,7 +680,8 @@ function pick(kind, id) {
   function prev() {
     var m = scale(picked.opts[+unit.value].per, num(qty.value));
     document.getElementById("preview").textContent =
-      r0(m.kcal) + " kcal · " + r1(m.p) + " g protein · " + r1(m.c) + " g carbs · " + r1(m.f) + " g fat";
+      r0(m.kcal) + " kcal · " + r1(m.p) + "p · " + r1(m.c) + "c · " + r1(m.f) + "f" +
+      (m.fib > 0 ? " · " + r1(m.fib) + " fib" : "");
   }
   qty.addEventListener("input", prev);
   unit.addEventListener("change", function () {
@@ -679,7 +706,7 @@ function confirmLog() {
 function addEntry(name, qtyLabel, m) {
   S.log.push({
     id: uid(), date: day, name: name, qtyLabel: qtyLabel,
-    kcal: m.kcal, p: m.p, c: m.c, f: m.f
+    kcal: m.kcal, p: m.p, c: m.c, f: m.f, fib: m.fib || 0
   });
   persist();
 }
@@ -708,16 +735,18 @@ function renderBatchSheet() {
     h += '<div class="ing" style="color:var(--muted)">No ingredients yet.</div>';
   } else {
     draft.items.forEach(function (it, i) {
-      var f = byId(S.foods, it.foodId);
-      var m = f ? scale(f, it.grams / 100) : { kcal: 0 };
-      h += '<div class="ing"><div class="grow"><div>' + esc(f ? f.name : "missing food") + '</div>' +
-        '<div class="g">' + r1(it.grams) + ' g · ' + r0(m.kcal) + ' kcal</div></div>' +
+      h += '<div class="ing"><div class="grow"><div>' + esc(it.name) + '</div>' +
+        '<div class="g">' + (it.note ? esc(it.note) + ' · ' : '') + r0(it.kcal) + ' kcal · ' +
+        r1(it.p) + 'p ' + r1(it.c) + 'c ' + r1(it.f) + 'f' +
+        ((it.fib || 0) > 0 ? ' ' + r1(it.fib) + 'fib' : '') + '</div></div>' +
+        '<button class="x" data-action="edit-ing" data-i="' + i + '" aria-label="Edit">✎</button>' +
         '<button class="x" data-action="rm-ing" data-i="' + i + '" aria-label="Remove">✕</button></div>';
     });
     h += '<div class="totalline"><span>Batch total</span><b>' + r0(t.kcal) + ' kcal · ' +
-      r0(t.p) + 'p ' + r0(t.c) + 'c ' + r0(t.f) + 'f</b></div>';
+      r0(t.p) + 'p ' + r0(t.c) + 'c ' + r0(t.f) + 'f' + (t.fib > 0 ? ' ' + r0(t.fib) + 'fib' : '') + '</b></div>';
   }
-  h += '</div><button class="btn ghost block" style="margin-top:10px" data-action="add-ing">+ Add ingredient</button>';
+  h += '</div><p class="hint" style="margin-top:8px">Type each ingredient and the numbers off its packet or label. Nothing is looked up for you.</p>' +
+    '<button class="btn ghost block" data-action="add-ing">+ Add ingredient</button>';
 
   h += '<h2>What it made</h2>' +
     '<div class="grid2">' +
@@ -725,7 +754,7 @@ function renderBatchSheet() {
       '<label class="field"><span>Unit</span><input type="text" id="byu" value="' + esc(draft.yieldUnit) + '" placeholder="cup"></label>' +
     '</div>' +
     '<label class="field"><span>Cooked weight in grams (optional — lets you log by weight)</span>' +
-    '<input type="number" id="bcg" value="' + (draft.cookedGrams || "") + '" placeholder="' + r0(t.grams) + '" inputmode="decimal"></label>';
+    '<input type="number" id="bcg" value="' + (draft.cookedGrams || "") + '" placeholder="e.g. 1800" inputmode="decimal"></label>';
 
   h += '<div class="panel" style="margin-bottom:14px" id="perpanel">' + perPanelHTML() + '</div>';
 
@@ -746,7 +775,8 @@ function perPanelHTML() {
   var g = draft.yieldQty > 0 && cookedGrams(draft) > 0 ? r0(cookedGrams(draft) / draft.yieldQty) : 0;
   return '<div class="cap">One ' + esc(draft.yieldUnit || "serving") + (g ? ' ≈ ' + g + ' g' : '') + '</div>' +
     '<div class="per"><span class="n">' + r0(per.kcal) + '</span><span class="l">kcal · ' +
-    r1(per.p) + ' g protein · ' + r1(per.c) + ' g carbs · ' + r1(per.f) + ' g fat</span></div>';
+    r1(per.p) + ' g protein · ' + r1(per.c) + ' g carbs · ' + r1(per.f) + ' g fat' +
+    (per.fib > 0 ? ' · ' + r1(per.fib) + ' g fiber' : '') + '</span></div>';
 }
 
 function syncDraft() {
@@ -758,49 +788,83 @@ function syncDraft() {
   draft.cookedGrams = num(document.getElementById("bcg").value, 0);
 }
 
-function addIngredientUI() {
-  syncDraft();
-  var opts = S.foods.map(function (f) { return '<option value="' + f.id + '">' + esc(f.name) + '</option>'; }).join("");
-  var h = '<label class="field"><span>Ingredient</span><select id="ifood">' + opts + '</select></label>' +
-    '<div class="grid2">' +
-      '<label class="field"><span>Amount</span><input type="number" id="iamt" value="100" step="1" inputmode="decimal"></label>' +
-      '<label class="field"><span>Unit</span><select id="iunit"><option value="g">g</option><option value="oz">oz</option><option value="lb">lb</option><option value="u">unit</option></select></label>' +
-    '</div>' +
-    '<div id="ipreview" class="hint"></div>' +
-    '<div class="split"><button class="btn ghost" data-action="back-batch">Back</button>' +
-    '<button class="btn" data-action="save-ing">Add to batch</button></div>' +
-    '<button class="btn ghost block" style="margin-top:10px" data-action="new-food-inline">+ Create a new food first</button>';
-  openSheet("Add ingredient", h);
-  var fs = document.getElementById("ifood"), am = document.getElementById("iamt"), un = document.getElementById("iunit");
-  function prev() {
-    var f = byId(S.foods, fs.value);
-    var g = toGrams(num(am.value), un.value, f);
-    var m = scale(f, g / 100);
-    document.getElementById("ipreview").textContent =
-      r0(g) + " g → " + r0(m.kcal) + " kcal · " + r1(m.p) + "p " + r1(m.c) + "c " + r1(m.f) + "f" +
-      (un.value === "u" && !f.unitGrams ? "  (no unit weight saved for this food)" : "");
+function recentIngredients() {
+  var seen = {}, out = [];
+  for (var i = 0; i < S.batches.length; i++) {
+    var items = S.batches[i].items || [];
+    for (var j = items.length - 1; j >= 0; j--) {
+      var key = (items[j].name || "").toLowerCase();
+      if (!key || seen[key]) continue;
+      seen[key] = 1;
+      out.push(items[j]);
+      if (out.length >= 8) return out;
+    }
   }
-  [fs, am, un].forEach(function (el) { el.addEventListener("input", prev); el.addEventListener("change", prev); });
-  prev();
+  return out;
 }
-function toGrams(amt, unit, food) {
-  if (unit === "oz") return amt * 28.35;
-  if (unit === "lb") return amt * 453.6;
-  if (unit === "u") return amt * (food && food.unitGrams ? food.unitGrams : 0);
-  return amt;
+
+/* Ingredients are whatever you type. No built-in food list, no lookups:
+   name it, copy the numbers off the packet, done. */
+function addIngredientUI(editIndex) {
+  syncDraft();
+  var it = (editIndex !== undefined && draft.items[editIndex]) ? draft.items[editIndex]
+         : { name: "", note: "", kcal: "", p: "", c: "", f: "", fib: "" };
+  var recent = recentIngredients();
+  var h = "";
+
+  if (recent.length && editIndex === undefined) {
+    h += '<div class="chipbar">';
+    recent.forEach(function (r, i) {
+      h += '<button class="quick" data-action="reuse-ing" data-i="' + i + '">' + esc(r.name) + '</button>';
+    });
+    h += '</div><p class="hint" style="margin-top:-4px">Tap one to refill it from the last time you used it.</p>';
+  }
+
+  h += '<label class="field"><span>Ingredient</span><input type="text" id="iname" value="' + esc(it.name) + '" placeholder="onions"></label>' +
+    '<label class="field"><span>How much (just a note — 2 large, 1 bag, 500 g)</span>' +
+    '<input type="text" id="inote" value="' + esc(it.note || "") + '" placeholder="2 large"></label>' +
+    '<label class="field"><span>Calories in that much</span>' +
+    '<input type="number" id="ikcal" value="' + it.kcal + '" placeholder="88" inputmode="decimal"></label>' +
+    '<span style="display:block;font-size:13px;color:var(--muted);margin-bottom:5px">Protein · Carbs · Fat · Fiber (grams)</span>' +
+    '<div class="grid4">' +
+      '<input type="number" id="ip" value="' + it.p + '" placeholder="P" inputmode="decimal" aria-label="Protein">' +
+      '<input type="number" id="ic" value="' + it.c + '" placeholder="C" inputmode="decimal" aria-label="Carbs">' +
+      '<input type="number" id="if" value="' + it.f + '" placeholder="F" inputmode="decimal" aria-label="Fat">' +
+      '<input type="number" id="ifb" value="' + it.fib + '" placeholder="Fib" inputmode="decimal" aria-label="Fiber">' +
+    '</div>' +
+    '<p class="hint" style="margin-top:10px">Leave any of them blank and they count as zero.</p>' +
+    '<div class="split"><button class="btn ghost" data-action="back-batch">Back</button>' +
+    '<button class="btn" data-action="save-ing" data-i="' + (editIndex === undefined ? "" : editIndex) + '">' +
+    (editIndex === undefined ? "Add to batch" : "Save ingredient") + '</button></div>';
+
+  openSheet(editIndex === undefined ? "Add ingredient" : "Edit ingredient", h);
+  setTimeout(function () { var n = document.getElementById("iname"); if (n && !n.value) n.focus(); }, 60);
+}
+
+function reuseIngredient(i) {
+  var r = recentIngredients()[i];
+  if (!r) return;
+  document.getElementById("iname").value = r.name;
+  document.getElementById("inote").value = r.note || "";
+  document.getElementById("ikcal").value = r0(r.kcal);
+  document.getElementById("ip").value = r1(r.p);
+  document.getElementById("ic").value = r1(r.c);
+  document.getElementById("if").value = r1(r.f);
+  document.getElementById("ifb").value = r1(r.fib || 0);
 }
 
 /* ------- food editor ------- */
 function openFood(id, backTo) {
   var f = id ? byId(S.foods, id) : null;
-  var d = f || { id: "", name: "", kcal: "", p: "", c: "", f: "", unitName: "", unitGrams: "" };
+  var d = f || { id: "", name: "", kcal: "", p: "", c: "", f: "", fib: "", unitName: "", unitGrams: "" };
   var h = '<label class="field"><span>Name</span><input type="text" id="fname" value="' + esc(d.name) + '" placeholder="Rotisserie chicken"></label>' +
     '<p class="hint">Enter the numbers per 100 g — that is what most labels and databases give.</p>' +
+    '<label class="field"><input type="number" id="fk" value="' + d.kcal + '" placeholder="Calories per 100 g" inputmode="decimal" aria-label="Calories per 100 g"></label>' +
     '<div class="grid4">' +
-      '<input type="number" id="fk" value="' + d.kcal + '" placeholder="kcal" inputmode="decimal" aria-label="Calories per 100 g">' +
       '<input type="number" id="fp" value="' + d.p + '" placeholder="P" inputmode="decimal" aria-label="Protein">' +
       '<input type="number" id="fc" value="' + d.c + '" placeholder="C" inputmode="decimal" aria-label="Carbs">' +
       '<input type="number" id="ff" value="' + d.f + '" placeholder="F" inputmode="decimal" aria-label="Fat">' +
+      '<input type="number" id="ffb" value="' + (d.fib === "" ? "" : d.fib) + '" placeholder="Fib" inputmode="decimal" aria-label="Fiber">' +
     '</div>' +
     '<div class="grid2" style="margin-top:12px">' +
       '<label class="field"><span>Unit name (optional)</span><input type="text" id="fun" value="' + esc(d.unitName) + '" placeholder="slice"></label>' +
@@ -821,6 +885,7 @@ function saveFood(id, backTo) {
     p: num(document.getElementById("fp").value),
     c: num(document.getElementById("fc").value),
     f: num(document.getElementById("ff").value),
+    fib: num(document.getElementById("ffb").value),
     unitName: document.getElementById("fun").value.trim(),
     unitGrams: num(document.getElementById("fug").value)
   };
@@ -848,7 +913,10 @@ function openSettings() {
       '<label class="field"><span>Protein (g)</span><input type="number" id="tp" value="' + t.p + '" inputmode="decimal"></label>' +
       '<label class="field"><span>Carbs (g)</span><input type="number" id="tc" value="' + t.c + '" inputmode="decimal"></label>' +
     '</div>' +
-    '<label class="field"><span>Fat (g)</span><input type="number" id="tf" value="' + t.f + '" inputmode="decimal"></label>' +
+    '<div class="grid2">' +
+      '<label class="field"><span>Fat (g)</span><input type="number" id="tf" value="' + t.f + '" inputmode="decimal"></label>' +
+      '<label class="field"><span>Fiber (g)</span><input type="number" id="tfb" value="' + t.fib + '" inputmode="decimal"></label>' +
+    '</div>' +
     '<button class="btn block" data-action="save-targets">Save targets</button>' +
     '<h2>Your data</h2>' +
     '<p class="hint">Everything is stored in this browser only. Nothing is uploaded anywhere. Export before you clear your browser data or switch phones.</p>' +
@@ -916,7 +984,8 @@ document.addEventListener("click", function (e) {
         kcal: kc,
         p: num(document.getElementById("mp").value),
         c: num(document.getElementById("mc").value),
-        f: num(document.getElementById("mf").value)
+        f: num(document.getElementById("mf").value),
+        fib: num(document.getElementById("mfb").value)
       });
       closeSheet(); tab = "today"; render(); break;
     }
@@ -924,11 +993,23 @@ document.addEventListener("click", function (e) {
     case "edit-batch": openBatch(el.dataset.id); break;
     case "back-batch": renderBatchSheet(); break;
     case "add-ing": addIngredientUI(); break;
+    case "edit-ing": syncDraft(); addIngredientUI(+el.dataset.i); break;
+    case "reuse-ing": reuseIngredient(+el.dataset.i); break;
     case "rm-ing": syncDraft(); draft.items.splice(+el.dataset.i, 1); renderBatchSheet(); break;
     case "save-ing": {
-      var fid = document.getElementById("ifood").value;
-      var g = toGrams(num(document.getElementById("iamt").value), document.getElementById("iunit").value, byId(S.foods, fid));
-      if (g > 0) draft.items.push({ foodId: fid, grams: g });
+      var iname = document.getElementById("iname").value.trim();
+      if (!iname) { document.getElementById("iname").focus(); return; }
+      var item = {
+        name: iname,
+        note: document.getElementById("inote").value.trim(),
+        kcal: num(document.getElementById("ikcal").value),
+        p: num(document.getElementById("ip").value),
+        c: num(document.getElementById("ic").value),
+        f: num(document.getElementById("if").value),
+        fib: num(document.getElementById("ifb").value)
+      };
+      if (el.dataset.i === "") draft.items.push(item);
+      else draft.items[+el.dataset.i] = item;
       renderBatchSheet(); break;
     }
     case "save-batch": {
@@ -948,7 +1029,6 @@ document.addEventListener("click", function (e) {
       }
       break;
     case "new-food": openFood(null, ""); break;
-    case "new-food-inline": openFood(null, "ing"); break;
     case "edit-food": openFood(el.dataset.id, ""); break;
     case "save-food": saveFood(el.dataset.id, el.dataset.back); break;
     case "del-food":
@@ -970,14 +1050,15 @@ document.addEventListener("click", function (e) {
         kcal: num(document.getElementById("tk").value, 2000),
         p: num(document.getElementById("tp").value, 150),
         c: num(document.getElementById("tc").value, 200),
-        f: num(document.getElementById("tf").value, 65)
+        f: num(document.getElementById("tf").value, 65),
+        fib: num(document.getElementById("tfb").value, 30)
       };
       persist(); closeSheet(); tab = "today"; render(); break;
     case "export": doExport(); break;
     case "import": document.getElementById("importfile").click(); break;
     case "reset":
       if (confirm("Erase all batches, foods and logs? This cannot be undone.")) {
-        S = { theme: S.theme, targets: { kcal: 2000, p: 150, c: 200, f: 65 }, foods: seedFoods(), batches: [], log: [] };
+        S = { theme: S.theme, targets: { kcal: 2000, p: 150, c: 200, f: 65, fib: 30 }, foods: seedFoods(), batches: [], log: [] };
         persist(); closeSheet(); render();
       }
       break;

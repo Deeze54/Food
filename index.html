@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Batch — calories &amp; macros for people who cook once</title>
+<title>Lightweight Baby — calories, macros &amp; bodyweight</title>
 <meta name="theme-color" content="#0f2a2e" media="(prefers-color-scheme: dark)">
 <meta name="theme-color" content="#f2f5f0" media="(prefers-color-scheme: light)">
-<meta name="description" content="Log a batch once, then log a cup of it. Calorie and macro tracking built around cooking in bulk.">
+<meta name="description" content="Log a batch once, then log a cup of it. Calories, macros and bodyweight, built around cooking in bulk.">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Batch">
+<meta name="apple-mobile-web-app-title" content="Lightweight">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -215,6 +215,14 @@
   .split .btn{flex:1}
   .totalline{display:flex;justify-content:space-between;padding:12px;font-size:14px;border-top:1px solid var(--line);color:var(--muted)}
   .totalline b{color:var(--chalk);font-weight:600}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0}
+  .stat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 10px}
+  .stat .n{display:block;font-size:21px;font-weight:700;letter-spacing:-.03em;line-height:1.1}
+  .stat .l{display:block;font-size:12px;color:var(--muted);margin-top:3px}
+  .stat .n.up{color:var(--protein)}
+  .stat .n.down{color:var(--fat)}
+  .chart{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 8px 6px}
+  .chart svg{display:block;width:100%;height:auto}
   .seg{display:flex;gap:6px;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:4px;margin-bottom:20px}
   .seg button{flex:1;padding:9px 6px;border-radius:9px;font-size:14px;font-weight:600;color:var(--muted)}
   .seg button[aria-pressed=true]{background:var(--surface);color:var(--chalk)}
@@ -227,7 +235,7 @@
 
 <div class="wrap">
   <div class="topbar">
-    <div class="brand">Batch <span>· macros</span></div>
+    <div class="brand">Lightweight <span>baby</span></div>
     <button class="iconbtn" data-action="open-settings" aria-label="Settings">⚙</button>
   </div>
   <div id="storagewarn"></div>
@@ -239,6 +247,7 @@
   <button role="tab" data-tab="today" aria-selected="true"><span class="ic">◔</span>Today</button>
   <button role="tab" data-tab="cook" aria-selected="false"><span class="ic">◍</span>Batches</button>
   <button role="tab" data-tab="foods" aria-selected="false"><span class="ic">☰</span>Foods</button>
+  <button role="tab" data-tab="weight" aria-selected="false"><span class="ic">◈</span>Weight</button>
 </nav>
 
 <div class="sheet-bg" id="sheetbg"></div>
@@ -258,7 +267,7 @@
    storage — falls back to memory if localStorage is unavailable
    (e.g. a sandboxed preview frame). Works fully on GitHub Pages.
 ----------------------------------------------------------------*/
-var KEY = "batch-macros-v1";
+var KEY = "batch-macros-v1";   // do not rename: this is where your saved data lives
 var canPersist = true;
 try { localStorage.setItem("__t", "1"); localStorage.removeItem("__t"); }
 catch (e) { canPersist = false; }
@@ -343,7 +352,9 @@ var S = load() || {
   dayProfile: {},
   foods: seedFoods(),
   batches: [],
-  log: []
+  log: [],
+  weights: [],
+  weightUnit: "lb"
 };
 if (!S.foods || !S.foods.length) S.foods = seedFoods();
 if (!S.log) S.log = [];
@@ -368,6 +379,8 @@ function ensureProfiles() {
   if (S.targets) { delete S.targets; persist(); }
 }
 ensureProfiles();
+if (!S.weights) S.weights = [];
+if (!S.weightUnit) S.weightUnit = "lb";
 
 /* Add foods that shipped after this save was made. Matching is by name, so
    anything already there (including your own edits) is left alone, and once
@@ -510,6 +523,33 @@ function batchPerUnit(b) {
 function portionGrams(b) { return b.portionGrams > 0 ? b.portionGrams : 0; }
 function cookedGrams(b) { return portionGrams(b) * (b.yieldQty > 0 ? b.yieldQty : 1); }
 
+/* Bodyweight is stored in kg and shown in whatever unit you picked. */
+var LB_PER_KG = 2.20462;
+function toKg(v) { return S.weightUnit === "lb" ? v / LB_PER_KG : v; }
+function fromKg(kg) { return S.weightUnit === "lb" ? kg * LB_PER_KG : kg; }
+function wShow(kg) { return (Math.round(fromKg(kg) * 10) / 10).toFixed(1); }
+
+function weightsSorted() {
+  return S.weights.slice().sort(function (a, b) { return a.date < b.date ? -1 : 1; });
+}
+function weightOn(key) {
+  for (var i = 0; i < S.weights.length; i++) if (S.weights[i].date === key) return S.weights[i];
+  return null;
+}
+function daysBetween(a, b) {
+  var pa = a.split("-"), pb = b.split("-");
+  return Math.round((new Date(pb[0], pb[1] - 1, pb[2]) - new Date(pa[0], pa[1] - 1, pa[2])) / 86400000);
+}
+/* average of everything logged in the 7 days up to and including a date */
+function trailingAvg(list, idx, days) {
+  var end = list[idx].date, sum = 0, n = 0;
+  for (var i = idx; i >= 0; i--) {
+    if (daysBetween(list[i].date, end) >= days) break;
+    sum += list[i].kg; n++;
+  }
+  return n ? sum / n : list[idx].kg;
+}
+
 function profileForDay(key) {
   return byId(S.profiles, S.dayProfile[key]) || byId(S.profiles, S.activeProfile) || S.profiles[0];
 }
@@ -566,6 +606,7 @@ function render() {
   });
   if (tab === "today") viewToday();
   else if (tab === "cook") viewBatches();
+  else if (tab === "weight") viewWeight();
   else viewFoods();
   window.scrollTo(0, 0);
 }
@@ -682,6 +723,131 @@ function renderFoodList(q) {
   });
   if (!list.length) h = '<div class="empty">No match. Tap “New food” to add it.</div>';
   document.getElementById("foodlist").innerHTML = h;
+}
+
+var wRange = 90;   // days shown in the chart; 0 = everything
+
+function viewWeight() {
+  var all = weightsSorted();
+  var u = S.weightUnit;
+  var todays = weightOn(todayKey());
+
+  var h = '<div class="seg" style="margin-bottom:14px">' +
+      '<button data-action="weight-unit" data-v="lb" aria-pressed="' + (u === "lb") + '">Pounds</button>' +
+      '<button data-action="weight-unit" data-v="kg" aria-pressed="' + (u === "kg") + '">Kilograms</button>' +
+    '</div>' +
+    '<div class="panel"><div class="cap">' + (todays ? "Today, already logged" : "Weigh-in for today") + '</div>' +
+    '<div style="padding:12px"><div class="grid2">' +
+      '<input type="number" id="wval" step="0.1" inputmode="decimal" aria-label="Weight" value="' +
+        (todays ? wShow(todays.kg) : "") + '" placeholder="' + (all.length ? wShow(all[all.length - 1].kg) : "0.0") + '">' +
+      '<button class="btn" data-action="save-weight">' + (todays ? "Update" : "Save") + '</button>' +
+    '</div></div></div>';
+
+  if (!all.length) {
+    view.innerHTML = h + '<div class="empty" style="margin-top:14px"><b>No weigh-ins yet</b>' +
+      'Log one a day, same time, same conditions. The seven-day average is the line that matters — daily numbers bounce around by a couple of pounds for reasons that have nothing to do with fat.</div>';
+    return;
+  }
+
+  // stats
+  var last = all[all.length - 1];
+  var avgNow = trailingAvg(all, all.length - 1, 7);
+  /* compare against the weigh-in closest to a month back, averaged the same way */
+  var change = null, span = 0, best = -1, bestGap = 1e9;
+  for (var i = all.length - 1; i >= 0; i--) {
+    var gap = daysBetween(all[i].date, last.date);
+    if (gap >= 21 && Math.abs(gap - 30) < bestGap) { bestGap = Math.abs(gap - 30); best = i; span = gap; }
+  }
+  if (best > -1) change = avgNow - trailingAvg(all, best, 7);
+  h += '<div class="stats">' +
+    '<div class="stat"><span class="n">' + wShow(last.kg) + '</span><span class="l">latest, ' + prettyDay(last.date).toLowerCase() + '</span></div>' +
+    '<div class="stat"><span class="n">' + wShow(avgNow) + '</span><span class="l">7-day average</span></div>' +
+    '<div class="stat"><span class="n' + (change === null ? '' : change > 0 ? ' up' : change < 0 ? ' down' : '') + '">' +
+      (change === null ? '—' : (change > 0 ? '+' : '') + (Math.round(fromKg(change) * 10) / 10).toFixed(1)) +
+      '</span><span class="l">' + (change === null ? 'need 4 weeks' : 'over ' + span + ' days') + '</span></div>' +
+  '</div>';
+
+  // chart
+  var pts = all;
+  if (wRange > 0) {
+    pts = all.filter(function (e) { return daysBetween(e.date, last.date) < wRange; });
+    if (pts.length < 2) pts = all.slice(-2);
+  }
+  h += '<div class="chart">' + weightChartSVG(pts) + '</div>' +
+    '<div class="chipbar" style="margin-top:10px">' +
+      [[30, "30 days"], [90, "90 days"], [0, "All"]].map(function (r) {
+        return '<button class="quick" data-action="weight-range" data-v="' + r[0] + '"' +
+          (wRange === r[0] ? ' style="border-color:var(--chalk)"' : '') + '>' + r[1] + '</button>';
+      }).join("") +
+    '</div>';
+
+  h += '<h2>Weigh-ins (' + all.length + ')</h2>';
+  all.slice().reverse().slice(0, 40).forEach(function (e, i, arr) {
+    var prev = arr[i + 1];
+    var diff = prev ? fromKg(e.kg - prev.kg) : null;
+    h += '<button class="row" data-action="edit-weight" data-date="' + e.date + '">' +
+      '<div class="grow"><div class="name">' + wShow(e.kg) + ' ' + u + '</div>' +
+      '<div class="meta">' + prettyDay(e.date) + ' · ' + e.date + '</div></div>' +
+      '<div class="kcal" style="color:' + (diff === null ? 'var(--muted)' : diff > 0 ? 'var(--protein)' : diff < 0 ? 'var(--fat)' : 'var(--muted)') + '">' +
+        (diff === null ? '' : (diff > 0 ? '+' : '') + (Math.round(diff * 10) / 10).toFixed(1)) + '</div></button>';
+  });
+  view.innerHTML = h;
+}
+
+/* raw weigh-ins as a thin line, the 7-day average as the bold one */
+function weightChartSVG(list) {
+  var W = 340, H = 170, L = 6, R = 40, T = 14, B = 22;
+  if (!list.length) return "";
+  var days = daysBetween(list[0].date, list[list.length - 1].date) || 1;
+  var avg = list.map(function (e, i) { return trailingAvg(list, i, 7); });
+  var vals = list.map(function (e) { return e.kg; }).concat(avg);
+  var lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals);
+  var pad = Math.max((hi - lo) * 0.15, 0.3);
+  lo -= pad; hi += pad;
+
+  function x(e) { return L + (daysBetween(list[0].date, e.date) / days) * (W - L - R); }
+  function y(v) { return T + (1 - (v - lo) / (hi - lo)) * (H - T - B); }
+  function path(getter) {
+    return list.map(function (e, i) { return (i ? "L" : "M") + x(e).toFixed(1) + " " + y(getter(e, i)).toFixed(1); }).join(" ");
+  }
+
+  var g = '<line x1="' + L + '" y1="' + y(hi - pad) + '" x2="' + (W - R) + '" y2="' + y(hi - pad) + '" stroke="var(--line)" stroke-width="1" vector-effect="non-scaling-stroke"/>' +
+          '<line x1="' + L + '" y1="' + y(lo + pad) + '" x2="' + (W - R) + '" y2="' + y(lo + pad) + '" stroke="var(--line)" stroke-width="1" vector-effect="non-scaling-stroke"/>' +
+          '<text x="' + (W - R + 6) + '" y="' + (y(hi - pad) + 4) + '" font-size="11" fill="var(--muted)">' + wShow(hi - pad) + '</text>' +
+          '<text x="' + (W - R + 6) + '" y="' + (y(lo + pad) + 4) + '" font-size="11" fill="var(--muted)">' + wShow(lo + pad) + '</text>';
+
+  var raw = '<path d="' + path(function (e) { return e.kg; }) + '" fill="none" stroke="var(--line-strong)" stroke-width="1.5" vector-effect="non-scaling-stroke"/>';
+  var dots = list.map(function (e) {
+    return '<circle cx="' + x(e).toFixed(1) + '" cy="' + y(e.kg).toFixed(1) + '" r="2" fill="var(--line-strong)"/>';
+  }).join("");
+  var mean = '<path d="' + path(function (e, i) { return avg[i]; }) + '" fill="none" stroke="var(--chalk)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>';
+
+  var labels = '<text x="' + L + '" y="' + (H - 5) + '" font-size="11" fill="var(--muted)">' + list[0].date.slice(5) + '</text>' +
+    '<text x="' + (W - R) + '" y="' + (H - 5) + '" font-size="11" fill="var(--muted)" text-anchor="end">' + list[list.length - 1].date.slice(5) + '</text>';
+
+  return '<svg viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Weight over time">' +
+    g + raw + dots + mean + labels + '</svg>';
+}
+
+function openWeightEntry(dateKey) {
+  var e = weightOn(dateKey);
+  if (!e) return;
+  openSheet("Edit weigh-in",
+    '<label class="field"><span>Date</span><input type="date" id="wdate" value="' + e.date + '" max="' + todayKey() + '"></label>' +
+    '<label class="field"><span>Weight (' + S.weightUnit + ')</span>' +
+    '<input type="number" id="wedit" step="0.1" inputmode="decimal" value="' + wShow(e.kg) + '"></label>' +
+    '<div class="split"><button class="btn ghost" data-action="close-sheet">Cancel</button>' +
+    '<button class="btn" data-action="update-weight" data-date="' + e.date + '">Save</button></div>' +
+    '<button class="btn danger block" style="margin-top:10px" data-action="del-weight" data-date="' + e.date + '">Delete this weigh-in</button>');
+}
+
+function setWeight(dateKey, shown) {
+  var v = num(shown);
+  if (v <= 0) return false;
+  S.weights = S.weights.filter(function (e) { return e.date !== dateKey; });
+  S.weights.push({ date: dateKey, kg: toKg(v) });
+  persist();
+  return true;
 }
 
 /* ---------------------------------------------------------------
@@ -1183,7 +1349,7 @@ function doExport() {
   var blob = new Blob([JSON.stringify(S, null, 2)], { type: "application/json" });
   var a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
-  a.download = "batch-macros-" + todayKey() + ".json";
+  a.download = "lightweight-baby-" + todayKey() + ".json";
   a.click();
   setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
 }
@@ -1198,6 +1364,8 @@ function doImport(e) {
       S = data;
       if (!S.theme) S.theme = "auto";
       ensureProfiles();
+      if (!S.weights) S.weights = [];
+      if (!S.weightUnit) S.weightUnit = "lb";
       persist(); applyTheme(); closeSheet(); render();
     } catch (err) {
       alert("That file could not be read. It needs to be an export from this app.");
@@ -1285,6 +1453,25 @@ document.addEventListener("click", function (e) {
         persist(); closeSheet(); render();
       }
       break;
+    case "save-weight":
+      if (setWeight(todayKey(), document.getElementById("wval").value)) render();
+      else document.getElementById("wval").focus();
+      break;
+    case "edit-weight": openWeightEntry(el.dataset.date); break;
+    case "update-weight": {
+      var nd = document.getElementById("wdate").value || el.dataset.date;
+      if (nd > todayKey()) nd = todayKey();
+      S.weights = S.weights.filter(function (x) { return x.date !== el.dataset.date; });
+      if (!setWeight(nd, document.getElementById("wedit").value)) { persist(); }
+      closeSheet(); render(); break;
+    }
+    case "del-weight":
+      S.weights = S.weights.filter(function (x) { return x.date !== el.dataset.date; });
+      persist(); closeSheet(); render(); break;
+    case "weight-unit":
+      S.weightUnit = el.dataset.v; persist(); render(); break;
+    case "weight-range":
+      wRange = +el.dataset.v; render(); break;
     case "open-settings": openSettings(); break;
     case "theme":
       S.theme = el.dataset.v;
@@ -1318,7 +1505,7 @@ document.addEventListener("click", function (e) {
         S = {
           theme: S.theme, seedVersion: SEED_VERSION,
           profiles: JSON.parse(JSON.stringify(DEFAULT_PROFILES)), activeProfile: "hard", dayProfile: {},
-          foods: seedFoods(), batches: [], log: []
+          foods: seedFoods(), batches: [], log: [], weights: [], weightUnit: S.weightUnit || "lb"
         };
         persist(); closeSheet(); render();
       }

@@ -218,6 +218,9 @@
   .seg{display:flex;gap:6px;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:4px;margin-bottom:20px}
   .seg button{flex:1;padding:9px 6px;border-radius:9px;font-size:14px;font-weight:600;color:var(--muted)}
   .seg button[aria-pressed=true]{background:var(--surface);color:var(--chalk)}
+  .seg.profiles{margin-bottom:14px;overflow-x:auto;scrollbar-width:none}
+  .seg.profiles::-webkit-scrollbar{display:none}
+  .seg.profiles button{flex:1 0 auto;min-width:0;max-width:100%;padding:10px 14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 </style>
 </head>
 <body>
@@ -228,6 +231,7 @@
     <button class="iconbtn" data-action="open-settings" aria-label="Settings">⚙</button>
   </div>
   <div id="storagewarn"></div>
+  <div id="profilebar"></div>
   <main id="view"></main>
 </div>
 
@@ -326,10 +330,17 @@ function seedFoods() {
   });
 }
 
+var DEFAULT_PROFILES = [
+  { id: "hard", name: "Hard training", targets: { kcal: 2600, p: 180, c: 290, f: 80, fib: 35 } },
+  { id: "soft", name: "Soft training", targets: { kcal: 2100, p: 165, c: 190, f: 70, fib: 30 } }
+];
+
 var S = load() || {
   theme: "auto",
   seedVersion: SEED_VERSION,
-  targets: { kcal: 2000, p: 150, c: 200, f: 65, fib: 30 },
+  profiles: JSON.parse(JSON.stringify(DEFAULT_PROFILES)),
+  activeProfile: "hard",
+  dayProfile: {},
   foods: seedFoods(),
   batches: [],
   log: []
@@ -338,7 +349,25 @@ if (!S.foods || !S.foods.length) S.foods = seedFoods();
 if (!S.log) S.log = [];
 if (!S.batches) S.batches = [];
 if (!S.theme) S.theme = "auto";
-if (!S.targets.fib) S.targets.fib = 30;
+
+/* One set of targets became several. Older saves keep their numbers as the
+   first profile; the second starts as a copy so nothing changes until edited. */
+function ensureProfiles() {
+  if (!S.dayProfile) S.dayProfile = {};
+  if (!S.profiles || !S.profiles.length) {
+    var t = S.targets || { kcal: 2000, p: 150, c: 200, f: 65, fib: 30 };
+    if (!t.fib) t.fib = 30;
+    S.profiles = [
+      { id: "hard", name: "Hard training", targets: JSON.parse(JSON.stringify(t)) },
+      { id: "soft", name: "Soft training", targets: JSON.parse(JSON.stringify(t)) }
+    ];
+    S.activeProfile = "hard";
+  }
+  S.profiles.forEach(function (pr) { if (!pr.targets.fib) pr.targets.fib = 30; });
+  if (!byId(S.profiles, S.activeProfile)) S.activeProfile = S.profiles[0].id;
+  if (S.targets) { delete S.targets; persist(); }
+}
+ensureProfiles();
 
 /* Add foods that shipped after this save was made. Matching is by name, so
    anything already there (including your own edits) is left alone, and once
@@ -481,6 +510,11 @@ function batchPerUnit(b) {
 function portionGrams(b) { return b.portionGrams > 0 ? b.portionGrams : 0; }
 function cookedGrams(b) { return portionGrams(b) * (b.yieldQty > 0 ? b.yieldQty : 1); }
 
+function profileForDay(key) {
+  return byId(S.profiles, S.dayProfile[key]) || byId(S.profiles, S.activeProfile) || S.profiles[0];
+}
+function targetsFor(key) { return profileForDay(key).targets; }
+
 function dayLog(key) { return S.log.filter(function (e) { return e.date === key; }); }
 function dayTotals(key) {
   return dayLog(key).reduce(function (a, e) {
@@ -515,7 +549,18 @@ function applyTheme() {
 ----------------------------------------------------------------*/
 var view = document.getElementById("view");
 
+function renderProfileBar() {
+  var act = profileForDay(day).id;
+  var h = '<div class="seg profiles">';
+  S.profiles.forEach(function (pr) {
+    h += '<button data-action="switch-profile" data-id="' + pr.id + '" aria-pressed="' +
+      (pr.id === act ? "true" : "false") + '">' + esc(pr.name) + '</button>';
+  });
+  document.getElementById("profilebar").innerHTML = h + '</div>';
+}
+
 function render() {
+  renderProfileBar();
   document.querySelectorAll(".tabs button").forEach(function (b) {
     b.setAttribute("aria-selected", b.dataset.tab === tab ? "true" : "false");
   });
@@ -526,7 +571,7 @@ function render() {
 }
 
 function gaugeHTML() {
-  var t = dayTotals(day), g = S.targets;
+  var t = dayTotals(day), g = targetsFor(day);
   var left = g.kcal - t.kcal, over = left < 0;
   var pct = g.kcal > 0 ? Math.min(100, (t.kcal / g.kcal) * 100) : 0;
   function macro(cls, label, val, target) {
@@ -1058,24 +1103,29 @@ function saveFood(id, backTo) {
 
 /* ------- settings ------- */
 function openSettings() {
-  var t = S.targets;
   var th = S.theme || "auto";
   function seg(v, label) {
     return '<button data-action="theme" data-v="' + v + '" aria-pressed="' + (th === v ? "true" : "false") + '">' + label + '</button>';
   }
   var h = '<h2 style="margin-top:0">Appearance</h2>' +
     '<div class="seg">' + seg("auto", "Match phone") + seg("light", "Light") + seg("dark", "Dark") + '</div>' +
-    '<h2>Daily targets</h2>' +
-    '<label class="field"><span>Calories</span><input type="number" id="tk" value="' + t.kcal + '" inputmode="decimal"></label>' +
-    '<div class="grid2">' +
-      '<label class="field"><span>Protein (g)</span><input type="number" id="tp" value="' + t.p + '" inputmode="decimal"></label>' +
-      '<label class="field"><span>Carbs (g)</span><input type="number" id="tc" value="' + t.c + '" inputmode="decimal"></label>' +
-    '</div>' +
-    '<div class="grid2">' +
-      '<label class="field"><span>Fat (g)</span><input type="number" id="tf" value="' + t.f + '" inputmode="decimal"></label>' +
-      '<label class="field"><span>Fiber (g)</span><input type="number" id="tfb" value="' + t.fib + '" inputmode="decimal"></label>' +
-    '</div>' +
-    '<button class="btn block" data-action="save-targets">Save targets</button>' +
+    '<h2>Profiles</h2>' +
+    '<p class="hint">Each profile carries its own calorie and macro targets. Switch at the top of the screen; the day you are looking at remembers which one it was on.</p>';
+
+  var same = S.profiles.length > 1 && S.profiles.every(function (pr) {
+    return JSON.stringify(pr.targets) === JSON.stringify(S.profiles[0].targets);
+  });
+  if (same) h += '<div class="banner">Your profiles all hold the same numbers right now, so switching will not change anything. Edit one to set it apart.</div>';
+
+  S.profiles.forEach(function (pr) {
+    var t = pr.targets;
+    h += '<button class="row" data-action="edit-profile" data-id="' + pr.id + '">' +
+      '<div class="grow"><div class="name">' + esc(pr.name) +
+      (pr.id === S.activeProfile ? ' <span style="color:var(--muted);font-weight:400">· in use</span>' : '') + '</div>' +
+      '<div class="meta">' + r0(t.kcal) + ' kcal · ' + r0(t.p) + 'p ' + r0(t.c) + 'c ' + r0(t.f) + 'f ' + r0(t.fib) + 'fib</div>' +
+      '</div></button>';
+  });
+  h += '<button class="btn ghost block" data-action="new-profile">+ New profile</button>' +
     '<h2>Your data</h2>' +
     '<p class="hint">Everything is stored in this browser only. Nothing is uploaded anywhere. Export before you clear your browser data or switch phones.</p>' +
     '<div class="split"><button class="btn ghost" data-action="export">Export file</button>' +
@@ -1084,6 +1134,49 @@ function openSettings() {
     '<button class="btn danger block" style="margin-top:24px" data-action="reset">Erase everything</button>';
   openSheet("Settings", h);
   document.getElementById("importfile").addEventListener("change", doImport);
+}
+
+function openProfile(id) {
+  var pr = id ? byId(S.profiles, id) : null;
+  var t = pr ? pr.targets : { kcal: 2200, p: 160, c: 220, f: 70, fib: 30 };
+  var h = '<label class="field"><span>Name</span><input type="text" id="pname" value="' +
+      esc(pr ? pr.name : "") + '" placeholder="Rest day"></label>' +
+    '<label class="field"><span>Calories</span><input type="number" id="pk" value="' + t.kcal + '" inputmode="decimal"></label>' +
+    '<div class="grid2">' +
+      '<label class="field"><span>Protein (g)</span><input type="number" id="pp" value="' + t.p + '" inputmode="decimal"></label>' +
+      '<label class="field"><span>Carbs (g)</span><input type="number" id="pc" value="' + t.c + '" inputmode="decimal"></label>' +
+    '</div>' +
+    '<div class="grid2">' +
+      '<label class="field"><span>Fat (g)</span><input type="number" id="pf" value="' + t.f + '" inputmode="decimal"></label>' +
+      '<label class="field"><span>Fiber (g)</span><input type="number" id="pfb" value="' + t.fib + '" inputmode="decimal"></label>' +
+    '</div>' +
+    '<div class="split"><button class="btn ghost" data-action="open-settings">Back</button>' +
+    '<button class="btn" data-action="save-profile" data-id="' + (pr ? pr.id : "") + '">Save profile</button></div>';
+  if (pr && S.profiles.length > 1) {
+    h += '<button class="btn danger block" style="margin-top:10px" data-action="del-profile" data-id="' + pr.id + '">Delete profile</button>';
+  }
+  openSheet(pr ? "Edit profile" : "New profile", h);
+}
+
+function saveProfile(id) {
+  var name = document.getElementById("pname").value.trim();
+  if (!name) { document.getElementById("pname").focus(); return; }
+  var t = {
+    kcal: num(document.getElementById("pk").value, 2000),
+    p: num(document.getElementById("pp").value, 150),
+    c: num(document.getElementById("pc").value, 200),
+    f: num(document.getElementById("pf").value, 65),
+    fib: num(document.getElementById("pfb").value, 30)
+  };
+  var pr = byId(S.profiles, id);
+  if (pr) { pr.name = name; pr.targets = t; }
+  else {
+    pr = { id: uid(), name: name, targets: t };
+    S.profiles.push(pr);
+    S.activeProfile = pr.id;
+    S.dayProfile[day] = pr.id;
+  }
+  persist(); render(); openSettings();
 }
 
 function doExport() {
@@ -1104,6 +1197,7 @@ function doImport(e) {
       if (!data.foods || !data.log) throw new Error("bad file");
       S = data;
       if (!S.theme) S.theme = "auto";
+      ensureProfiles();
       persist(); applyTheme(); closeSheet(); render();
     } catch (err) {
       alert("That file could not be read. It needs to be an export from this app.");
@@ -1199,20 +1293,33 @@ document.addEventListener("click", function (e) {
         b2.setAttribute("aria-pressed", b2.dataset.v === S.theme ? "true" : "false");
       });
       break;
-    case "save-targets":
-      S.targets = {
-        kcal: num(document.getElementById("tk").value, 2000),
-        p: num(document.getElementById("tp").value, 150),
-        c: num(document.getElementById("tc").value, 200),
-        f: num(document.getElementById("tf").value, 65),
-        fib: num(document.getElementById("tfb").value, 30)
-      };
-      persist(); closeSheet(); tab = "today"; render(); break;
+    case "switch-profile":
+      S.activeProfile = el.dataset.id;
+      S.dayProfile[day] = el.dataset.id;
+      persist(); render(); break;
+    case "new-profile": openProfile(null); break;
+    case "edit-profile": openProfile(el.dataset.id); break;
+    case "save-profile": saveProfile(el.dataset.id); break;
+    case "del-profile":
+      if (S.profiles.length < 2) return;
+      if (confirm("Delete this profile? Days that used it fall back to the one in use.")) {
+        S.profiles = S.profiles.filter(function (x) { return x.id !== el.dataset.id; });
+        if (S.activeProfile === el.dataset.id) S.activeProfile = S.profiles[0].id;
+        Object.keys(S.dayProfile).forEach(function (k) {
+          if (S.dayProfile[k] === el.dataset.id) delete S.dayProfile[k];
+        });
+        persist(); render(); openSettings();
+      }
+      break;
     case "export": doExport(); break;
     case "import": document.getElementById("importfile").click(); break;
     case "reset":
       if (confirm("Erase all batches, foods and logs? This cannot be undone.")) {
-        S = { theme: S.theme, seedVersion: SEED_VERSION, targets: { kcal: 2000, p: 150, c: 200, f: 65, fib: 30 }, foods: seedFoods(), batches: [], log: [] };
+        S = {
+          theme: S.theme, seedVersion: SEED_VERSION,
+          profiles: JSON.parse(JSON.stringify(DEFAULT_PROFILES)), activeProfile: "hard", dayProfile: {},
+          foods: seedFoods(), batches: [], log: []
+        };
         persist(); closeSheet(); render();
       }
       break;

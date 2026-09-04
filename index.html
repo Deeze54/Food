@@ -276,7 +276,11 @@ function persist() {
 var SEED = [
   ["Chicken breast, cooked", 165, 31, 0, 3.6, 0],
   ["Chicken thigh, cooked", 209, 26, 0, 10.9, 0],
-  ["Ground beef 85/15, cooked", 250, 26, 0, 15, 0],
+  ["Ground beef 80/20, cooked & drained", 272, 27, 0, 17.4, 0],
+  ["Ground beef 85/15, cooked & drained", 256, 27.7, 0, 15.3, 0],
+  ["Ground beef 90/10, cooked & drained", 230, 28.5, 0, 12, 0],
+  ["Ground beef 93/7, cooked & drained", 209, 28.6, 0, 9.5, 0],
+  ["Ground beef 95/5, cooked & drained", 193, 29.2, 0, 7.6, 0],
   ["Salmon, cooked", 208, 20, 0, 13, 0],
   ["Egg", 143, 12.6, 0.7, 9.5, 0, "egg", 50],
   ["Greek yogurt, 2%", 73, 9.9, 3.9, 1.9, 0],
@@ -303,13 +307,19 @@ var SEED = [
   ["Carrot", 41, 0.9, 9.6, 0.2, 2.8],
   ["Tomatoes, canned", 32, 1.6, 7.3, 0.3, 1.9, "can", 400],
   ["Banana", 89, 1.1, 22.8, 0.3, 2.6, "medium", 118],
+  ["Blackberries", 43, 1.4, 9.6, 0.5, 5.3, "cup", 144],
+  ["Honey", 304, 0.3, 82.4, 0, 0.2, "tbsp", 21],
+  ["Liquid I.V. Hydration Multiplier", 281, 0, 68.8, 0, 0, "stick", 16],
   ["Apple", 52, 0.3, 13.8, 0.2, 2.4, "medium", 182]
 ];
 
+var SEED_VERSION = 2;
+function slug(n) { return n.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""); }
+
 function seedFoods() {
-  return SEED.map(function (r, i) {
+  return SEED.map(function (r) {
     return {
-      id: "f" + i, name: r[0],
+      id: "s-" + slug(r[0]), name: r[0],
       kcal: r[1], p: r[2], c: r[3], f: r[4], fib: r[5] || 0,
       unitName: r[6] || "", unitGrams: r[7] || 0
     };
@@ -318,6 +328,7 @@ function seedFoods() {
 
 var S = load() || {
   theme: "auto",
+  seedVersion: SEED_VERSION,
   targets: { kcal: 2000, p: 150, c: 200, f: 65, fib: 30 },
   foods: seedFoods(),
   batches: [],
@@ -329,6 +340,18 @@ if (!S.batches) S.batches = [];
 if (!S.theme) S.theme = "auto";
 if (!S.targets.fib) S.targets.fib = 30;
 
+/* Add foods that shipped after this save was made. Matching is by name, so
+   anything already there (including your own edits) is left alone, and once
+   the top-up has run, foods you delete stay deleted. */
+function mergeSeedFoods() {
+  if (S.seedVersion >= SEED_VERSION) return;
+  S.foods = S.foods.filter(function (f) { return f.name !== "Ground beef 85/15, cooked"; });
+  var have = {};
+  S.foods.forEach(function (f) { have[(f.name || "").toLowerCase()] = 1; });
+  seedFoods().forEach(function (f) { if (!have[f.name.toLowerCase()]) S.foods.push(f); });
+  S.seedVersion = SEED_VERSION;
+  persist();
+}
 /* Bring older saves up to the current shape, once, on load. */
 S.batches.forEach(function (b) {
   (b.items || []).forEach(function (it, i) {
@@ -358,6 +381,9 @@ S.batches.forEach(function (b) {
   }
   delete b.cookedGrams;
 });
+
+/* runs last: the batch migration above still needs the old library */
+mergeSeedFoods();
 
 var tab = "today";
 var day = todayKey();
@@ -393,6 +419,7 @@ function esc(s) {
   });
 }
 function num(v, d) { var n = parseFloat(v); return isNaN(n) ? (d || 0) : n; }
+function byName(a, b) { return a.name.localeCompare(b.name); }
 function byId(list, id) { for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i]; return null; }
 function macroDots(m) {
   var h = '<div class="dots"><span class="dot p"></span>' + r1(m.p) + 'p' +
@@ -599,7 +626,7 @@ function viewFoods() {
 
 function renderFoodList(q) {
   q = (q || "").toLowerCase();
-  var list = S.foods.filter(function (f) { return f.name.toLowerCase().indexOf(q) > -1; });
+  var list = S.foods.filter(function (f) { return f.name.toLowerCase().indexOf(q) > -1; }).sort(byName);
   var h = "";
   list.forEach(function (f) {
     h += '<div class="row"><button class="grow" data-action="edit-food" data-id="' + f.id + '" style="background:none;border:0;padding:0">' +
@@ -669,7 +696,7 @@ function renderResults(q) {
   q = (q || "").toLowerCase();
   var h = "";
   var bs = S.batches.filter(function (b) { return b.name.toLowerCase().indexOf(q) > -1; });
-  var fs = S.foods.filter(function (f) { return f.name.toLowerCase().indexOf(q) > -1; }).slice(0, 40);
+  var fs = S.foods.filter(function (f) { return f.name.toLowerCase().indexOf(q) > -1; }).sort(byName).slice(0, 40);
   if (bs.length) {
     h += '<h2 style="margin-top:4px">Batches</h2>';
     bs.forEach(function (b) {
@@ -1185,7 +1212,7 @@ document.addEventListener("click", function (e) {
     case "import": document.getElementById("importfile").click(); break;
     case "reset":
       if (confirm("Erase all batches, foods and logs? This cannot be undone.")) {
-        S = { theme: S.theme, targets: { kcal: 2000, p: 150, c: 200, f: 65, fib: 30 }, foods: seedFoods(), batches: [], log: [] };
+        S = { theme: S.theme, seedVersion: SEED_VERSION, targets: { kcal: 2000, p: 150, c: 200, f: 65, fib: 30 }, foods: seedFoods(), batches: [], log: [] };
         persist(); closeSheet(); render();
       }
       break;

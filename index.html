@@ -186,7 +186,7 @@
   .sheet-head{position:sticky;top:0;background:var(--bg);padding:16px var(--pad) 10px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--line);z-index:2}
   .sheet-head h3{margin:0;font-size:17px;font-weight:700;flex:1;letter-spacing:-.01em}
   .sheet-body{padding:16px var(--pad) 8px;max-width:600px;margin:0 auto}
-  @media (prefers-reduced-motion:reduce){.sheet,.rail>i{transition:none}}
+  @media (prefers-reduced-motion:reduce){.sheet,.rail>i,.bub{transition:none}}
 
   /* ---------- tabs ---------- */
   .tabs{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--tabbar);backdrop-filter:blur(10px);
@@ -226,9 +226,24 @@
   .seg{display:flex;gap:6px;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:4px;margin-bottom:20px}
   .seg button{flex:1;padding:9px 6px;border-radius:9px;font-size:14px;font-weight:600;color:var(--muted)}
   .seg button[aria-pressed=true]{background:var(--surface);color:var(--chalk)}
-  .seg.profiles{margin-bottom:14px;overflow-x:auto;scrollbar-width:none}
-  .seg.profiles::-webkit-scrollbar{display:none}
-  .seg.profiles button{flex:1 0 auto;min-width:0;max-width:100%;padding:10px 14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cheat{display:flex;align-items:center;gap:10px;width:100%;padding:11px 14px;margin-bottom:10px;
+    border:1px solid var(--line);border-radius:12px;color:var(--muted);font-size:14.5px;font-weight:600;text-align:left}
+  .cheat .box{flex:none;width:20px;height:20px;border-radius:6px;border:1.5px solid var(--line);
+    display:grid;place-items:center;font-size:12px;color:transparent}
+  .cheat .why{margin-left:auto;font-weight:400;font-size:12.5px;color:var(--muted)}
+  .cheat[aria-pressed=true]{border-color:var(--carbs);color:var(--chalk)}
+  .cheat[aria-pressed=true] .box{background:var(--carbs);border-color:var(--carbs);color:var(--bg)}
+  .cheatdot{display:inline-block;width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;
+    border-bottom:7px solid var(--carbs);margin-right:6px;vertical-align:1px}
+  .bubbles{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px;margin:2px 0 16px}
+  .bub{display:grid;justify-items:center;gap:1px;min-width:0;border:1px solid var(--line);border-radius:999px;
+    padding:8px 15px;color:var(--muted);font-size:13.5px;font-weight:600;line-height:1.25;
+    transition:background-color .18s ease,border-color .18s ease,color .18s ease}
+  .bub:hover{border-color:var(--line-strong);color:var(--chalk)}
+  .bub .nm{max-width:42vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .bub .tg{font-size:11.5px;font-weight:500;color:var(--muted);white-space:nowrap}
+  .bub[aria-pressed=true]{background:var(--surface);border-color:var(--chalk);color:var(--chalk);
+    padding:10px 20px;font-size:16.5px;font-weight:700;letter-spacing:-.015em}
 </style>
 </head>
 <body>
@@ -287,46 +302,184 @@ function persist() {
 ----------------------------------------------------------------*/
 // per 100 g: [kcal, protein, carbs, fat]; unit optional: [name, grams]
 var SEED = [
+  ["Apple", 52, 0.3, 13.8, 0.2, 2.4, "medium", 182],
+  ["Applesauce, unsweetened", 42, 0.2, 11.3, 0.1, 1.1, "cup", 244],
+  ["Avocado", 160, 2, 8.5, 14.7, 6.7, "medium", 150],
+  ["Banana", 89, 1.1, 22.8, 0.3, 2.6, "medium", 118],
+  ["Blackberries", 43, 1.4, 9.6, 0.5, 5.3, "cup", 144],
+  ["Blueberries", 57, 0.7, 14.5, 0.3, 2.4, "cup", 148],
+  ["Cantaloupe", 34, 0.8, 8.2, 0.2, 0.9, "cup", 160],
+  ["Cherries", 63, 1.1, 16, 0.2, 2.1, "cup", 154],
+  ["Clementine", 47, 0.9, 12, 0.2, 1.7, "each", 74],
+  ["Cranberries, dried sweetened", 308, 0.1, 82.4, 1.4, 5.7, "cup", 120],
+  ["Dates, Medjool", 277, 1.8, 75, 0.2, 6.7, "date", 24],
+  ["Grapefruit", 42, 0.8, 10.7, 0.1, 1.6, "half", 123],
+  ["Grapes", 69, 0.7, 18.1, 0.2, 0.9, "cup", 151],
+  ["Lemon", 29, 1.1, 9.3, 0.3, 2.8, "each", 58],
+  ["Lime", 30, 0.7, 10.5, 0.2, 2.8, "each", 67],
+  ["Mango", 60, 0.8, 15, 0.4, 1.6, "cup", 165],
+  ["Orange", 47, 0.9, 11.8, 0.1, 2.4, "medium", 131],
+  ["Peach", 39, 0.9, 9.5, 0.3, 1.5, "medium", 150],
+  ["Pear", 57, 0.4, 15.2, 0.1, 3.1, "medium", 178],
+  ["Pineapple", 50, 0.5, 13.1, 0.1, 1.4, "cup", 165],
+  ["Raisins", 299, 3.1, 79.2, 0.5, 3.7, "cup", 145],
+  ["Raspberries", 52, 1.2, 11.9, 0.7, 6.5, "cup", 123],
+  ["Strawberries", 32, 0.7, 7.7, 0.3, 2, "cup", 152],
+  ["Watermelon", 30, 0.6, 7.6, 0.2, 0.4, "cup", 152],
+  ["Asparagus", 20, 2.2, 3.9, 0.1, 2.1],
+  ["Bell pepper", 31, 1, 6, 0.3, 2.1],
+  ["Broccoli", 34, 2.8, 6.6, 0.4, 2.6, "cup", 91],
+  ["Brussels sprouts", 43, 3.4, 9, 0.3, 3.8],
+  ["Butternut squash", 45, 1, 11.7, 0.1, 2, "cup", 140],
+  ["Cabbage", 25, 1.3, 5.8, 0.1, 2.5],
+  ["Carrot", 41, 0.9, 9.6, 0.2, 2.8, "medium", 61],
+  ["Cauliflower", 25, 1.9, 5, 0.3, 2, "cup", 107],
+  ["Celery", 14, 0.7, 3, 0.2, 1.6, "stalk", 40],
+  ["Corn, sweet", 86, 3.3, 19, 1.4, 2, "cup", 154],
+  ["Cucumber", 15, 0.7, 3.6, 0.1, 0.5],
+  ["Garlic", 149, 6.4, 33.1, 0.5, 2.1, "clove", 3],
+  ["Green beans", 31, 1.8, 7, 0.2, 3.4, "cup", 100],
+  ["Jalapeno", 29, 0.9, 6.5, 0.4, 2.8, "each", 14],
+  ["Kale", 49, 4.3, 8.8, 0.9, 3.6, "cup", 67],
+  ["Lettuce, romaine", 17, 1.2, 3.3, 0.3, 2.1, "cup", 47],
+  ["Mixed vegetables, frozen", 65, 3.3, 13.5, 0.5, 4, "cup", 155],
+  ["Mushrooms, white", 22, 3.1, 3.3, 0.3, 1, "cup", 70],
+  ["Onion", 40, 1.1, 9.3, 0.1, 1.7, "medium", 110],
+  ["Peas, green", 81, 5.4, 14.5, 0.4, 5.7, "cup", 145],
+  ["Potato", 77, 2, 17.5, 0.1, 2.2, "medium", 173],
+  ["Salsa", 36, 1.5, 7, 0.2, 1.9, "tbsp", 16],
+  ["Spinach", 23, 2.9, 3.6, 0.4, 2.2, "cup", 30],
+  ["Sweet potato", 86, 1.6, 20.1, 0.1, 3, "medium", 130],
+  ["Tomato", 18, 0.9, 3.9, 0.2, 1.2, "medium", 123],
+  ["Tomatoes, canned", 32, 1.6, 7.3, 0.3, 1.9, "can", 400],
+  ["Zucchini", 17, 1.2, 3.1, 0.3, 1, "medium", 196],
+  ["Bacon, cooked", 541, 37, 1.4, 42, 0, "slice", 8],
   ["Chicken breast, cooked", 165, 31, 0, 3.6, 0],
+  ["Chicken breast, raw", 120, 22.5, 0, 2.6, 0],
   ["Chicken thigh, cooked", 209, 26, 0, 10.9, 0],
+  ["Chicken, rotisserie", 190, 25, 0, 9.5, 0],
+  ["Cod, cooked", 105, 23, 0, 0.9, 0],
+  ["Egg", 143, 12.6, 0.7, 9.5, 0, "egg", 50],
+  ["Egg whites", 52, 10.9, 0.7, 0.2, 0, "cup", 243],
   ["Ground beef 80/20, cooked & drained", 272, 27, 0, 17.4, 0],
   ["Ground beef 85/15, cooked & drained", 256, 27.7, 0, 15.3, 0],
   ["Ground beef 90/10, cooked & drained", 230, 28.5, 0, 12, 0],
   ["Ground beef 93/7, cooked & drained", 209, 28.6, 0, 9.5, 0],
   ["Ground beef 95/5, cooked & drained", 193, 29.2, 0, 7.6, 0],
+  ["Ground turkey 93/7, cooked", 213, 27, 0, 11.4, 0],
+  ["Ground turkey 99/1, cooked", 150, 28.5, 0, 3.5, 0],
+  ["Ham, deli", 145, 16.6, 3.8, 6.9, 0],
+  ["Pork chop, cooked", 231, 26, 0, 13.5, 0],
+  ["Pork tenderloin, cooked", 143, 26, 0, 3.5, 0],
+  ["Ribeye steak, cooked", 291, 24, 0, 21, 0],
   ["Salmon, cooked", 208, 20, 0, 13, 0],
-  ["Egg", 143, 12.6, 0.7, 9.5, 0, "egg", 50],
-  ["Greek yogurt, 2%", 73, 9.9, 3.9, 1.9, 0],
-  ["Whole milk", 61, 3.2, 4.8, 3.3, 0, "cup", 244],
-  ["Cheddar cheese", 403, 25, 1.3, 33, 0],
-  ["Tofu, firm", 144, 17, 2.8, 8.7, 2.3],
-  ["Olive oil", 884, 0, 0, 100, 0, "tbsp", 13.5],
+  ["Sausage, pork, cooked", 325, 19, 1.5, 27, 0, "link", 27],
+  ["Shrimp, cooked", 99, 24, 0.2, 0.3, 0],
+  ["Sirloin steak, cooked", 212, 30, 0, 9.4, 0],
+  ["Tilapia, cooked", 129, 26, 0, 2.7, 0],
+  ["Tuna, canned in water", 116, 25.5, 0, 0.8, 0, "can", 142],
+  ["Turkey breast, deli", 104, 17, 3.5, 2.3, 0],
+  ["American cheese", 375, 18, 8, 30, 0, "slice", 21],
   ["Butter", 717, 0.9, 0.1, 81, 0, "tbsp", 14.2],
-  ["Peanut butter", 588, 25, 20, 50, 6, "tbsp", 16],
-  ["White rice, dry", 365, 7.1, 80, 0.7, 1.3, "cup", 185],
-  ["White rice, cooked", 130, 2.7, 28, 0.3, 0.4, "cup", 158],
-  ["Brown rice, cooked", 123, 2.7, 25.6, 1, 1.6, "cup", 195],
-  ["Pasta, dry", 371, 13, 75, 1.5, 3.2],
-  ["Rolled oats, dry", 379, 13.2, 67.7, 6.5, 10.6, "cup", 80],
+  ["Cheddar cheese", 403, 25, 1.3, 33, 0],
+  ["Cottage cheese, 2%", 84, 11.8, 4.3, 2.3, 0, "cup", 226],
+  ["Cream cheese", 342, 6, 5.5, 34, 0, "tbsp", 14],
+  ["Greek yogurt, 2%", 73, 9.9, 3.9, 1.9, 0, "cup", 227],
+  ["Greek yogurt, nonfat", 59, 10.3, 3.6, 0.4, 0, "cup", 227],
+  ["Half and half", 130, 3, 4.3, 11.5, 0, "tbsp", 15],
+  ["Heavy cream", 340, 2.8, 2.8, 36, 0, "tbsp", 15],
+  ["Ice cream, vanilla", 207, 3.5, 23.6, 11, 0.7, "cup", 132],
+  ["Milk, 2%", 50, 3.3, 4.8, 2, 0, "cup", 244],
+  ["Milk, almond unsweetened", 15, 0.6, 0.6, 1.2, 0.2, "cup", 240],
+  ["Milk, oat", 45, 1, 7, 1.5, 0.8, "cup", 240],
+  ["Milk, skim", 34, 3.4, 5, 0.2, 0, "cup", 245],
+  ["Milk, whole", 61, 3.2, 4.8, 3.3, 0, "cup", 244],
+  ["Mozzarella, part-skim", 254, 24, 2.8, 16, 0],
+  ["Parmesan, grated", 420, 28, 13.9, 28, 0, "tbsp", 5],
+  ["Sour cream", 198, 2.4, 4.6, 19.4, 0, "tbsp", 12],
+  ["Yogurt, plain whole milk", 61, 3.5, 4.7, 3.3, 0, "cup", 245],
+  ["Bagel", 250, 10, 49, 1.5, 2.1, "each", 98],
   ["Bread", 265, 9, 49, 3.2, 2.7, "slice", 30],
+  ["Bread, whole wheat", 247, 13, 41, 3.4, 6, "slice", 43],
+  ["Cereal, corn flakes", 357, 7.5, 84, 0.4, 3, "cup", 28],
+  ["Couscous, cooked", 112, 3.8, 23.2, 0.2, 1.4, "cup", 157],
+  ["Crackers, saltine", 421, 9, 74, 9, 2.8],
+  ["English muffin", 235, 8, 46, 1.8, 3.9, "each", 57],
+  ["Flour, all-purpose", 364, 10.3, 76.3, 1, 2.7, "cup", 125],
+  ["French fries", 312, 3.4, 41, 15, 3.8],
+  ["Granola", 471, 10, 64, 20, 7, "cup", 122],
+  ["Hamburger bun", 279, 9.5, 50, 4.2, 2.2, "each", 52],
+  ["Oatmeal, cooked", 71, 2.5, 12, 1.5, 1.7, "cup", 234],
+  ["Pasta, cooked", 158, 5.8, 30.9, 0.9, 1.8, "cup", 140],
+  ["Pasta, dry", 371, 13, 75, 1.5, 3.2],
+  ["Pizza, cheese", 266, 11, 33, 10, 2.3, "slice", 107],
+  ["Popcorn, air-popped", 387, 12.9, 77.9, 4.5, 14.5, "cup", 8],
+  ["Potato chips", 536, 6.6, 53, 34.6, 4.8, "oz", 28],
+  ["Pretzels", 384, 10, 80, 3, 3, "oz", 28],
+  ["Quinoa, cooked", 120, 4.4, 21.3, 1.9, 2.8, "cup", 185],
+  ["Rice, brown cooked", 123, 2.7, 25.6, 1, 1.6, "cup", 195],
+  ["Rice, white cooked", 130, 2.7, 28, 0.3, 0.4, "cup", 158],
+  ["Rice, white dry", 365, 7.1, 80, 0.7, 1.3, "cup", 185],
+  ["Rolled oats, dry", 379, 13.2, 67.7, 6.5, 10.6, "cup", 80],
+  ["Tortilla, corn", 218, 5.7, 44.6, 2.9, 6.3, "each", 26],
+  ["Tortilla, flour", 306, 8.2, 51, 7.6, 3, "each", 45],
+  ["Tortilla chips", 489, 7, 63, 23, 5, "oz", 28],
+  ["Almond butter", 614, 21, 19, 56, 10, "tbsp", 16],
+  ["Almonds", 579, 21.2, 21.6, 49.9, 12.5, "oz", 28],
   ["Black beans, canned", 91, 6, 16.6, 0.3, 7.5, "cup", 172],
+  ["Cashews", 553, 18.2, 30.2, 43.9, 3.3, "oz", 28],
+  ["Chia seeds", 486, 16.5, 42.1, 30.7, 34.4, "tbsp", 12],
   ["Chickpeas, canned", 139, 7.1, 22.5, 2.6, 6.4, "cup", 152],
+  ["Edamame, shelled", 121, 11.9, 8.9, 5.2, 5.2, "cup", 155],
+  ["Flaxseed, ground", 534, 18.3, 28.9, 42.2, 27.3, "tbsp", 7],
+  ["Great northern beans, canned", 114, 7.3, 21, 0.4, 6.5, "cup", 177],
+  ["Hummus", 166, 7.9, 14.3, 9.6, 6, "tbsp", 15],
+  ["Kidney beans, canned", 100, 6.5, 18, 0.4, 6.3, "cup", 177],
   ["Lentils, cooked", 116, 9, 20, 0.4, 7.9, "cup", 198],
-  ["Potato", 77, 2, 17.5, 0.1, 2.2],
-  ["Sweet potato", 86, 1.6, 20.1, 0.1, 3],
-  ["Onion", 40, 1.1, 9.3, 0.1, 1.7],
-  ["Bell pepper", 31, 1, 6, 0.3, 2.1],
-  ["Broccoli", 34, 2.8, 6.6, 0.4, 2.6],
-  ["Carrot", 41, 0.9, 9.6, 0.2, 2.8],
-  ["Tomatoes, canned", 32, 1.6, 7.3, 0.3, 1.9, "can", 400],
-  ["Banana", 89, 1.1, 22.8, 0.3, 2.6, "medium", 118],
-  ["Blackberries", 43, 1.4, 9.6, 0.5, 5.3, "cup", 144],
+  ["Peanut butter", 588, 25, 20, 50, 6, "tbsp", 16],
+  ["Peanuts", 567, 25.8, 16.1, 49.2, 8.5, "oz", 28],
+  ["Pecans", 691, 9.2, 13.9, 72, 9.6, "oz", 28],
+  ["Pinto beans, canned", 105, 6.5, 19, 0.9, 6.3, "cup", 171],
+  ["Refried beans", 91, 5.3, 15, 1.3, 5, "cup", 253],
+  ["Sunflower seeds", 584, 20.8, 20, 51.5, 8.6, "oz", 28],
+  ["Tofu, firm", 144, 17, 2.8, 8.7, 2.3],
+  ["Walnuts", 654, 15.2, 13.7, 65.2, 6.7, "oz", 28],
+  ["Avocado oil", 884, 0, 0, 100, 0, "tbsp", 14],
+  ["BBQ sauce", 172, 0.8, 41, 0.6, 0.8, "tbsp", 17],
+  ["Brown sugar", 380, 0.1, 98, 0, 0, "tbsp", 13.8],
+  ["Canola oil", 884, 0, 0, 100, 0, "tbsp", 14],
+  ["Coconut oil", 862, 0, 0, 100, 0, "tbsp", 14],
   ["Honey", 304, 0.3, 82.4, 0, 0.2, "tbsp", 21],
+  ["Hot sauce", 11, 0.5, 1.8, 0, 0.3, "tsp", 5],
+  ["Ketchup", 101, 1.2, 25.8, 0.1, 0.3, "tbsp", 17],
+  ["Maple syrup", 260, 0, 67, 0.1, 0, "tbsp", 20],
+  ["Marinara sauce", 51, 1.4, 7.8, 1.6, 1.9, "cup", 132],
+  ["Mayonnaise", 680, 1, 0.6, 75, 0, "tbsp", 14],
+  ["Mustard", 66, 4, 5.8, 3.3, 3.3, "tsp", 5],
+  ["Olive oil", 884, 0, 0, 100, 0, "tbsp", 13.5],
+  ["Ranch dressing", 430, 1.3, 6.6, 44.5, 0, "tbsp", 15],
+  ["Soy sauce", 53, 8.1, 4.9, 0.6, 0.8, "tbsp", 16],
+  ["Sugar, granulated", 387, 0, 100, 0, 0, "tbsp", 12.5],
+  ["Tomato paste", 82, 4.3, 18.9, 0.5, 4.1, "tbsp", 16],
+  ["Tomato sauce", 24, 1.2, 5.3, 0.2, 1.5, "cup", 245],
+  ["Beer, light", 29, 0.2, 1.6, 0, 0, "can", 354],
+  ["Beer, regular", 43, 0.5, 3.6, 0, 0, "can", 356],
+  ["Chicken broth", 4, 0.5, 0.4, 0.1, 0, "cup", 240],
+  ["Chocolate, dark 70%", 598, 7.8, 45.9, 42.6, 10.9, "oz", 28],
+  ["Chocolate, milk", 535, 7.6, 59.4, 29.7, 3.4, "oz", 28],
+  ["Coconut milk, canned", 197, 2, 2.8, 21.3, 0, "cup", 240],
+  ["Coffee, black", 1, 0.1, 0, 0, 0, "cup", 237],
+  ["Cola", 41, 0, 10.6, 0, 0, "can", 368],
+  ["Diet soda", 0, 0, 0, 0, 0, "can", 355],
   ["Liquid I.V. Hydration Multiplier", 281, 0, 68.8, 0, 0, "stick", 16],
-  ["Apple", 52, 0.3, 13.8, 0.2, 2.4, "medium", 182]
+  ["Orange juice", 45, 0.7, 10.4, 0.2, 0.2, "cup", 248],
+  ["Sports drink", 26, 0, 6.6, 0, 0, "bottle", 591],
+  ["Spirits, 80 proof", 231, 0, 0, 0, 0, "shot", 42],
+  ["Whey protein powder", 400, 80, 8, 5, 1, "scoop", 31],
+  ["Wine, red", 85, 0.1, 2.6, 0, 0, "glass", 147]
 ];
 
-var SEED_VERSION = 2;
+var SEED_VERSION = 3;
 function slug(n) { return n.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""); }
 
 function seedFoods() {
@@ -354,7 +507,8 @@ var S = load() || {
   batches: [],
   log: [],
   weights: [],
-  weightUnit: "lb"
+  weightUnit: "lb",
+  cheatDays: {}
 };
 if (!S.foods || !S.foods.length) S.foods = seedFoods();
 if (!S.log) S.log = [];
@@ -381,6 +535,8 @@ function ensureProfiles() {
 ensureProfiles();
 if (!S.weights) S.weights = [];
 if (!S.weightUnit) S.weightUnit = "lb";
+if (!S.cheatDays) S.cheatDays = {};
+if (S.dayTags) { delete S.dayTags; persist(); }   // derived on export, never stored
 
 /* Add foods that shipped after this save was made. Matching is by name, so
    anything already there (including your own edits) is left alone, and once
@@ -550,6 +706,18 @@ function trailingAvg(list, idx, days) {
   return n ? sum / n : list[idx].kg;
 }
 
+/* A cheat day changes no maths. It is a label, so that a spike on the scale or
+   a day of loose tracking has an explanation attached to it later. */
+function isCheat(key) { return !!S.cheatDays[key]; }
+
+/* Any day you touch gets tagged with the profile it was on, even if you never
+   tapped a bubble that day. Without this, days you did not switch on would
+   export blank and there would be nothing to read the numbers against. */
+function stampDay(key) {
+  if (!S.dayProfile[key]) S.dayProfile[key] = S.activeProfile;
+}
+function cheatNote(key) { return (S.cheatDays[key] && S.cheatDays[key].note) || ""; }
+
 function profileForDay(key) {
   return byId(S.profiles, S.dayProfile[key]) || byId(S.profiles, S.activeProfile) || S.profiles[0];
 }
@@ -591,10 +759,14 @@ var view = document.getElementById("view");
 
 function renderProfileBar() {
   var act = profileForDay(day).id;
-  var h = '<div class="seg profiles">';
+  var h = '<div class="bubbles">';
   S.profiles.forEach(function (pr) {
-    h += '<button data-action="switch-profile" data-id="' + pr.id + '" aria-pressed="' +
-      (pr.id === act ? "true" : "false") + '">' + esc(pr.name) + '</button>';
+    var on = pr.id === act;
+    h += '<button class="bub" data-action="switch-profile" data-id="' + pr.id + '" aria-pressed="' + on + '">' +
+      '<span class="nm">' + esc(pr.name) + '</span>' +
+      (on ? '<span class="tg">' + r0(pr.targets.kcal) + ' kcal · ' + r0(pr.targets.p) + 'p ' +
+            r0(pr.targets.c) + 'c ' + r0(pr.targets.f) + 'f</span>' : '') +
+      '</button>';
   });
   document.getElementById("profilebar").innerHTML = h + '</div>';
 }
@@ -647,6 +819,15 @@ function viewToday() {
       (isToday ? '' : '<button class="textbtn" data-action="day-today">Back to today</button>') +
     '</div>';
 
+  var on = isCheat(day);
+  h += '<button class="cheat" data-action="toggle-cheat" aria-pressed="' + on + '">' +
+    '<span class="box">✓</span>Cheat day' +
+    '<span class="why">' + (on ? 'noted' : 'flag it, do not change the numbers') + '</span></button>';
+  if (on) {
+    h += '<label class="field"><input type="text" id="cheatnote" value="' + esc(cheatNote(day)) +
+      '" placeholder="What was it? (optional — wedding, pizza, birthday)"></label>';
+  }
+
   h += gaugeHTML();
   h += '<div style="margin-top:14px"><button class="btn block" data-action="open-add">+ Log food</button></div>';
 
@@ -673,6 +854,10 @@ function viewToday() {
     });
   }
   view.innerHTML = h;
+  var cn = document.getElementById("cheatnote");
+  if (cn) cn.addEventListener("change", function () {
+    if (S.cheatDays[day]) { S.cheatDays[day].note = cn.value.trim(); persist(); }
+  });
 }
 
 function viewBatches() {
@@ -699,8 +884,8 @@ function viewBatches() {
 }
 
 function viewFoods() {
-  var h = '<h2 style="margin-top:8px">Food library</h2>' +
-    '<p class="hint">Ingredients and packaged foods, stored per 100 g. These are the building blocks for batches.</p>' +
+  var h = '<h2 style="margin-top:8px">Food library (' + S.foods.length + ')</h2>' +
+    '<p class="hint">Ingredients and packaged foods, stored per 100 g. Search rather than scroll — there are a lot of them.</p>' +
     '<button class="btn block" data-action="new-food">+ New food</button>' +
     '<label class="field" style="margin-top:12px"><input type="search" id="foodfilter" placeholder="Search foods" value=""></label>' +
     '<div id="foodlist"></div>';
@@ -773,7 +958,11 @@ function viewWeight() {
     pts = all.filter(function (e) { return daysBetween(e.date, last.date) < wRange; });
     if (pts.length < 2) pts = all.slice(-2);
   }
+  var anyFlag = Object.keys(S.cheatDays).some(function (k) {
+    return daysBetween(pts[0].date, k) >= 0 && daysBetween(k, last.date) >= 0;
+  });
   h += '<div class="chart">' + weightChartSVG(pts) + '</div>' +
+    (anyFlag ? '<p class="hint" style="margin-top:8px"><span class="cheatdot"></span>Cheat day. The scale usually catches up a day or two later.</p>' : '') +
     '<div class="chipbar" style="margin-top:10px">' +
       [[30, "30 days"], [90, "90 days"], [0, "All"]].map(function (r) {
         return '<button class="quick" data-action="weight-range" data-v="' + r[0] + '"' +
@@ -787,7 +976,9 @@ function viewWeight() {
     var diff = prev ? fromKg(e.kg - prev.kg) : null;
     h += '<button class="row" data-action="edit-weight" data-date="' + e.date + '">' +
       '<div class="grow"><div class="name">' + wShow(e.kg) + ' ' + u + '</div>' +
-      '<div class="meta">' + prettyDay(e.date) + ' · ' + e.date + '</div></div>' +
+      '<div class="meta">' + (isCheat(e.date) ? '<span class="cheatdot"></span>' : '') +
+        prettyDay(e.date) + ' · ' + esc(profileForDay(e.date).name) +
+        (cheatNote(e.date) ? ' · ' + esc(cheatNote(e.date)) : '') + '</div></div>' +
       '<div class="kcal" style="color:' + (diff === null ? 'var(--muted)' : diff > 0 ? 'var(--protein)' : diff < 0 ? 'var(--fat)' : 'var(--muted)') + '">' +
         (diff === null ? '' : (diff > 0 ? '+' : '') + (Math.round(diff * 10) / 10).toFixed(1)) + '</div></button>';
   });
@@ -822,11 +1013,18 @@ function weightChartSVG(list) {
   }).join("");
   var mean = '<path d="' + path(function (e, i) { return avg[i]; }) + '" fill="none" stroke="var(--chalk)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>';
 
+  var flags = Object.keys(S.cheatDays).filter(function (k) {
+    return daysBetween(list[0].date, k) >= 0 && daysBetween(k, list[list.length - 1].date) >= 0;
+  }).map(function (k) {
+    var px = L + (daysBetween(list[0].date, k) / days) * (W - L - R);
+    return '<path d="M' + px.toFixed(1) + ' ' + (H - B + 2) + ' l-3.5 6 h7 z" fill="var(--carbs)"><title>Cheat day ' + k + '</title></path>';
+  }).join("");
+
   var labels = '<text x="' + L + '" y="' + (H - 5) + '" font-size="11" fill="var(--muted)">' + list[0].date.slice(5) + '</text>' +
     '<text x="' + (W - R) + '" y="' + (H - 5) + '" font-size="11" fill="var(--muted)" text-anchor="end">' + list[list.length - 1].date.slice(5) + '</text>';
 
   return '<svg viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Weight over time">' +
-    g + raw + dots + mean + labels + '</svg>';
+    g + raw + dots + mean + flags + labels + '</svg>';
 }
 
 function openWeightEntry(dateKey) {
@@ -844,6 +1042,7 @@ function openWeightEntry(dateKey) {
 function setWeight(dateKey, shown) {
   var v = num(shown);
   if (v <= 0) return false;
+  stampDay(dateKey);
   S.weights = S.weights.filter(function (e) { return e.date !== dateKey; });
   S.weights.push({ date: dateKey, kg: toKg(v) });
   persist();
@@ -988,6 +1187,7 @@ function confirmLog() {
 }
 
 function addEntry(name, qtyLabel, m) {
+  stampDay(day);
   S.log.push({
     id: uid(), date: day, name: name, qtyLabel: qtyLabel,
     kcal: m.kcal, p: m.p, c: m.c, f: m.f, fib: m.fib || 0
@@ -1345,8 +1545,32 @@ function saveProfile(id) {
   persist(); render(); openSettings();
 }
 
+/* The saved file gets a plain-language tag per day on top of the raw state:
+   which profile was selected, and whether it was flagged as a cheat day. */
+function exportPayload() {
+  var out = JSON.parse(JSON.stringify(S));
+  delete out.dayTags;
+  var days = {};
+  Object.keys(S.dayProfile).forEach(function (k) { days[k] = 1; });
+  Object.keys(S.cheatDays).forEach(function (k) { days[k] = 1; });
+  S.log.forEach(function (e) { days[e.date] = 1; });
+  S.weights.forEach(function (e) { days[e.date] = 1; });
+  out.dayTags = {};
+  Object.keys(days).sort().forEach(function (k) {
+    var w = weightOn(k), t = dayTotals(k);
+    out.dayTags[k] = {
+      profile: profileForDay(k).name,
+      cheatDay: isCheat(k),
+      kcal: r0(t.kcal),
+      weightKg: w ? Math.round(w.kg * 100) / 100 : null
+    };
+    if (cheatNote(k)) out.dayTags[k].note = cheatNote(k);
+  });
+  return out;
+}
+
 function doExport() {
-  var blob = new Blob([JSON.stringify(S, null, 2)], { type: "application/json" });
+  var blob = new Blob([JSON.stringify(exportPayload(), null, 2)], { type: "application/json" });
   var a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = "lightweight-baby-" + todayKey() + ".json";
@@ -1366,6 +1590,8 @@ function doImport(e) {
       ensureProfiles();
       if (!S.weights) S.weights = [];
       if (!S.weightUnit) S.weightUnit = "lb";
+      if (!S.cheatDays) S.cheatDays = {};
+      delete S.dayTags;   // rebuilt on the way out, never read back in
       persist(); applyTheme(); closeSheet(); render();
     } catch (err) {
       alert("That file could not be read. It needs to be an export from this app.");
@@ -1453,6 +1679,11 @@ document.addEventListener("click", function (e) {
         persist(); closeSheet(); render();
       }
       break;
+    case "toggle-cheat":
+      stampDay(day);
+      if (S.cheatDays[day]) delete S.cheatDays[day];
+      else S.cheatDays[day] = { note: "" };
+      persist(); render(); break;
     case "save-weight":
       if (setWeight(todayKey(), document.getElementById("wval").value)) render();
       else document.getElementById("wval").focus();
@@ -1505,7 +1736,7 @@ document.addEventListener("click", function (e) {
         S = {
           theme: S.theme, seedVersion: SEED_VERSION,
           profiles: JSON.parse(JSON.stringify(DEFAULT_PROFILES)), activeProfile: "hard", dayProfile: {},
-          foods: seedFoods(), batches: [], log: [], weights: [], weightUnit: S.weightUnit || "lb"
+          foods: seedFoods(), batches: [], log: [], weights: [], weightUnit: S.weightUnit || "lb", cheatDays: {}
         };
         persist(); closeSheet(); render();
       }

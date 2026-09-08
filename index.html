@@ -1142,12 +1142,14 @@ function pick(kind, id) {
     if (!f) return;
     name = f.name;
     opts.push({ label: "g", per: scale(f, 1 / 100) });
-    if (f.unitGrams > 0) opts.unshift({ label: f.unitName, per: scale(f, f.unitGrams / 100) });
+    if (f.unitGrams > 0) {
+      opts.push({ label: f.unitName, text: f.unitName + " (" + r1(f.unitGrams) + " g)", per: scale(f, f.unitGrams / 100) });
+    }
     opts.push({ label: "oz", per: scale(f, 28.35 / 100) });
   }
   picked = { kind: kind, id: id, name: name, opts: opts };
   var sel = "";
-  opts.forEach(function (o, i) { sel += '<option value="' + i + '">' + esc(o.label) + '</option>'; });
+  opts.forEach(function (o, i) { sel += '<option value="' + i + '">' + esc(o.text || o.label) + '</option>'; });
   var defQty = opts[0].label === "g" ? 100 : 1;
   document.getElementById("results").innerHTML = "";
   document.getElementById("q").value = "";
@@ -1427,7 +1429,7 @@ function openFood(id, backTo) {
   var f = id ? byId(S.foods, id) : null;
   var d = f || { id: "", name: "", kcal: "", p: "", c: "", f: "", fib: "", unitName: "", unitGrams: "" };
   var h = '<label class="field"><span>Name</span><input type="text" id="fname" value="' + esc(d.name) + '" placeholder="Rotisserie chicken"></label>' +
-    '<p class="hint">Enter the numbers per 100 g — that is what most labels and databases give.</p>' +
+    '<p class="hint">Enter the numbers per 100 g — that is what most labels and databases give. Grams are always available when logging; the unit below is an extra.</p>' +
     '<label class="field"><input type="number" id="fk" value="' + d.kcal + '" placeholder="Calories per 100 g" inputmode="decimal" aria-label="Calories per 100 g"></label>' +
     '<div class="grid4">' +
       '<input type="number" id="fp" value="' + d.p + '" placeholder="P" inputmode="decimal" aria-label="Protein">' +
@@ -1436,12 +1438,26 @@ function openFood(id, backTo) {
       '<input type="number" id="ffb" value="' + (d.fib === "" ? "" : d.fib) + '" placeholder="Fib" inputmode="decimal" aria-label="Fiber">' +
     '</div>' +
     '<div class="grid2" style="margin-top:12px">' +
-      '<label class="field"><span>Unit name (optional)</span><input type="text" id="fun" value="' + esc(d.unitName) + '" placeholder="slice"></label>' +
-      '<label class="field"><span>Grams in that unit</span><input type="number" id="fug" value="' + (d.unitGrams || "") + '" placeholder="30" inputmode="decimal"></label>' +
+      '<label class="field"><span>Also log it by</span><select id="fun">' + unitOptions(d.unitName) + '</select></label>' +
+      '<label class="field"><span>Grams in one of those</span><input type="number" id="fug" value="' + (d.unitGrams || "") + '" placeholder="30" inputmode="decimal"></label>' +
     '</div>' +
     '<button class="btn block" data-action="save-food" data-id="' + (d.id || "") + '" data-back="' + (backTo || "") + '">Save food</button>';
   if (f) h += '<button class="btn danger block" style="margin-top:10px" data-action="del-food" data-id="' + f.id + '">Delete food</button>';
   openSheet(f ? "Edit food" : "New food", h);
+}
+
+/* Grams always work. This is for the extra unit a food is naturally counted in. */
+var UNIT_CHOICES = ["serving", "cup", "tbsp", "tsp", "oz", "slice", "piece", "each",
+                    "medium", "scoop", "stick", "can", "bottle", "packet", "bar", "clove", "link"];
+
+function unitOptions(current) {
+  var list = UNIT_CHOICES.slice();
+  if (current && list.indexOf(current) === -1) list.unshift(current);
+  var h = '<option value=""' + (current ? "" : " selected") + '>Grams only</option>';
+  list.forEach(function (u) {
+    h += '<option value="' + esc(u) + '"' + (current === u ? " selected" : "") + '>' + esc(u) + '</option>';
+  });
+  return h;
 }
 
 function saveFood(id, backTo) {

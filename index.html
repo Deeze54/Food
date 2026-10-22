@@ -10,8 +10,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Lightweight">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<!-- No stylesheets, scripts, fonts or images are loaded from anywhere.
-     Once this page is open it makes no network requests at all. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
 <style>
   :root{
     color-scheme:dark;
@@ -88,8 +89,7 @@
   body{
     background:var(--bg);
     color:var(--chalk);
-    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI Variable Text","Segoe UI",
-      Roboto,"Helvetica Neue",Arial,sans-serif;
+    font-family:"Familjen Grotesk",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
     font-size:16px;
     line-height:1.45;
     -webkit-font-smoothing:antialiased;
@@ -186,7 +186,7 @@
   .sheet-head{position:sticky;top:0;background:var(--bg);padding:16px var(--pad) 10px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--line);z-index:2}
   .sheet-head h3{margin:0;font-size:17px;font-weight:700;flex:1;letter-spacing:-.01em}
   .sheet-body{padding:16px var(--pad) 8px;max-width:600px;margin:0 auto}
-  @media (prefers-reduced-motion:reduce){.sheet,.rail>i,.bub{transition:none}}
+  @media (prefers-reduced-motion:reduce){.sheet,.rail>i,.ptabs button{transition:none}}
 
   /* ---------- tabs ---------- */
   .tabs{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--tabbar);backdrop-filter:blur(10px);
@@ -235,15 +235,15 @@
   .cheat[aria-pressed=true] .box{background:var(--carbs);border-color:var(--carbs);color:var(--bg)}
   .cheatdot{display:inline-block;width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;
     border-bottom:7px solid var(--carbs);margin-right:6px;vertical-align:1px}
-  .bubbles{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px;margin:2px 0 16px}
-  .bub{display:grid;justify-items:center;gap:1px;min-width:0;border:1px solid var(--line);border-radius:999px;
-    padding:8px 15px;color:var(--muted);font-size:13.5px;font-weight:600;line-height:1.25;
-    transition:background-color .18s ease,border-color .18s ease,color .18s ease}
-  .bub:hover{border-color:var(--line-strong);color:var(--chalk)}
-  .bub .nm{max-width:42vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .bub .tg{font-size:11.5px;font-weight:500;color:var(--muted);white-space:nowrap}
-  .bub[aria-pressed=true]{background:var(--surface);border-color:var(--chalk);color:var(--chalk);
-    padding:10px 20px;font-size:16.5px;font-weight:700;letter-spacing:-.015em}
+  /* profile switcher: equal-width tabs, full bleed, never scrolls */
+  .ptabs{display:flex;border-bottom:1px solid var(--line);margin:0 calc(var(--pad) * -1) 16px;padding:0 4px}
+  .ptabs button{flex:1 1 0;min-width:0;padding:11px 6px 12px;margin-bottom:-1px;
+    color:var(--muted);font-size:14.5px;font-weight:600;letter-spacing:-.005em;
+    border-bottom:2px solid transparent;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    transition:color .15s ease,border-color .15s ease}
+  .ptabs button:hover{color:var(--chalk)}
+  .ptabs button[aria-pressed=true]{color:var(--chalk);font-weight:700;border-bottom-color:var(--chalk)}
+  .ptabs.tight button{font-size:13px;padding-left:2px;padding-right:2px}
 </style>
 </head>
 <body>
@@ -784,14 +784,10 @@ var view = document.getElementById("view");
 
 function renderProfileBar() {
   var act = profileForDay(day).id;
-  var h = '<div class="bubbles">';
+  var h = '<div class="ptabs' + (S.profiles.length > 3 ? " tight" : "") + '">';
   S.profiles.forEach(function (pr) {
-    var on = pr.id === act;
-    h += '<button class="bub" data-action="switch-profile" data-id="' + pr.id + '" aria-pressed="' + on + '">' +
-      '<span class="nm">' + esc(pr.name) + '</span>' +
-      (on ? '<span class="tg">' + r0(pr.targets.kcal) + ' kcal · ' + r0(pr.targets.p) + 'p ' +
-            r0(pr.targets.c) + 'c ' + r0(pr.targets.f) + 'f</span>' : '') +
-      '</button>';
+    h += '<button data-action="switch-profile" data-id="' + pr.id + '" aria-pressed="' +
+      (pr.id === act ? "true" : "false") + '">' + esc(pr.name) + '</button>';
   });
   document.getElementById("profilebar").innerHTML = h + '</div>';
 }
@@ -843,15 +839,6 @@ function viewToday() {
       '<div class="spacer"></div>' +
       (isToday ? '' : '<button class="textbtn" data-action="day-today">Back to today</button>') +
     '</div>';
-
-  var since = S.lastExport ? daysBetween(S.lastExport, todayKey()) : null;
-  var worthKeeping = S.log.length + S.weights.length + S.batches.length > 0;
-  if (worthKeeping && (since === null || since >= 14)) {
-    h += '<div class="banner" style="display:flex;align-items:center;gap:10px">' +
-      '<span style="flex:1">' + (since === null ? 'No backup yet.' : 'Last backup was ' + since + ' days ago.') +
-      ' Your data lives only in this browser.</span>' +
-      '<button class="btn small" data-action="export">Back up</button></div>';
-  }
 
   var on = isCheat(day);
   h += '<button class="cheat" data-action="toggle-cheat" aria-pressed="' + on + '">' +
@@ -1176,9 +1163,7 @@ function pick(kind, id) {
     if (!f) return;
     name = f.name;
     opts.push({ label: "g", per: scale(f, 1 / 100) });
-    if (f.unitGrams > 0) {
-      opts.push({ label: f.unitName, text: f.unitName + " (" + r1(f.unitGrams) + " g)", per: scale(f, f.unitGrams / 100) });
-    }
+    if (f.unitGrams > 0) opts.unshift({ label: f.unitName, per: scale(f, f.unitGrams / 100) });
     opts.push({ label: "oz", per: scale(f, 28.35 / 100) });
   }
   picked = { kind: kind, id: id, name: name, opts: opts };
@@ -1628,7 +1613,6 @@ function doExport() {
   a.download = "lightweight-baby-" + todayKey() + ".json";
   S.lastExport = todayKey();
   persist();
-  render();   // clears the backup nudge straight away
   a.click();
   setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
 }

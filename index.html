@@ -10,9 +10,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Lightweight">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
+<!-- No stylesheets, scripts, fonts or images are loaded from anywhere.
+     Once this page is open it makes no network requests at all. -->
 <style>
   :root{
     color-scheme:dark;
@@ -89,7 +88,8 @@
   body{
     background:var(--bg);
     color:var(--chalk);
-    font-family:"Familjen Grotesk",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI Variable Text","Segoe UI",
+      Roboto,"Helvetica Neue",Arial,sans-serif;
     font-size:16px;
     line-height:1.45;
     -webkit-font-smoothing:antialiased;
@@ -288,6 +288,18 @@ try { localStorage.setItem("__t", "1"); localStorage.removeItem("__t"); }
 catch (e) { canPersist = false; }
 var memory = null;
 
+/* Tell the browser this data is worth keeping, where that is supported.
+   Silently ignored elsewhere. Nothing leaves the device either way. */
+var persistentGranted = null;
+try {
+  if (navigator.storage && navigator.storage.persist) {
+    navigator.storage.persisted().then(function (already) {
+      if (already) { persistentGranted = true; return; }
+      navigator.storage.persist().then(function (ok) { persistentGranted = ok; });
+    });
+  }
+} catch (e) {}
+
 function load() {
   if (!canPersist) return memory;
   try { return JSON.parse(localStorage.getItem(KEY)); } catch (e) { return null; }
@@ -389,19 +401,25 @@ var SEED = [
   ["Half and half", 130, 3, 4.3, 11.5, 0, "tbsp", 15],
   ["Heavy cream", 340, 2.8, 2.8, 36, 0, "tbsp", 15],
   ["Ice cream, vanilla", 207, 3.5, 23.6, 11, 0.7, "cup", 132],
+  ["Milk, 1%", 42, 3.4, 5, 1, 0, "cup", 244],
   ["Milk, 2%", 50, 3.3, 4.8, 2, 0, "cup", 244],
   ["Milk, almond unsweetened", 15, 0.6, 0.6, 1.2, 0.2, "cup", 240],
   ["Milk, oat", 45, 1, 7, 1.5, 0.8, "cup", 240],
-  ["Milk, skim", 34, 3.4, 5, 0.2, 0, "cup", 245],
+  ["Milk, skim (0%)", 34, 3.4, 5, 0.2, 0, "cup", 245],
   ["Milk, whole", 61, 3.2, 4.8, 3.3, 0, "cup", 244],
   ["Mozzarella, part-skim", 254, 24, 2.8, 16, 0],
   ["Parmesan, grated", 420, 28, 13.9, 28, 0, "tbsp", 5],
+  ["Siggi's skyr, plain 0%", 58.8, 11.2, 4.1, 0, 0, "serving", 170],
+  ["Siggi's skyr, plain whole milk", 100, 10.6, 4.7, 4.1, 0, "serving", 170],
+  ["Siggi's skyr, vanilla 0%", 70.6, 10.6, 7.6, 0, 0, "serving", 170],
+  ["Siggi's skyr, vanilla whole milk", 105.9, 10, 8.8, 3.5, 0, "serving", 170],
   ["Sour cream", 198, 2.4, 4.6, 19.4, 0, "tbsp", 12],
   ["Yogurt, plain whole milk", 61, 3.5, 4.7, 3.3, 0, "cup", 245],
   ["Bagel", 250, 10, 49, 1.5, 2.1, "each", 98],
   ["Bread", 265, 9, 49, 3.2, 2.7, "slice", 30],
   ["Bread, whole wheat", 247, 13, 41, 3.4, 6, "slice", 43],
   ["Cereal, corn flakes", 357, 7.5, 84, 0.4, 3, "cup", 28],
+  ["Cereal, Rice Krispies", 375, 7.5, 90, 0.6, 0.7, "cup", 27],
   ["Couscous, cooked", 112, 3.8, 23.2, 0.2, 1.4, "cup", 157],
   ["Crackers, saltine", 421, 9, 74, 9, 2.8],
   ["English muffin", 235, 8, 46, 1.8, 3.9, "each", 57],
@@ -479,7 +497,7 @@ var SEED = [
   ["Wine, red", 85, 0.1, 2.6, 0, 0, "glass", 147]
 ];
 
-var SEED_VERSION = 3;
+var SEED_VERSION = 4;
 function slug(n) { return n.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""); }
 
 function seedFoods() {
@@ -541,9 +559,16 @@ if (S.dayTags) { delete S.dayTags; persist(); }   // derived on export, never st
 /* Add foods that shipped after this save was made. Matching is by name, so
    anything already there (including your own edits) is left alone, and once
    the top-up has run, foods you delete stay deleted. */
+var SEED_RENAMES = { "Milk, skim": "Milk, skim (0%)" };
+
 function mergeSeedFoods() {
   if (S.seedVersion >= SEED_VERSION) return;
   S.foods = S.foods.filter(function (f) { return f.name !== "Ground beef 85/15, cooked"; });
+  // rename rather than replace, so your own numbers on that food survive
+  S.foods.forEach(function (f) {
+    var to = SEED_RENAMES[f.name];
+    if (to && !S.foods.some(function (o) { return o.name === to; })) f.name = to;
+  });
   var have = {};
   S.foods.forEach(function (f) { have[(f.name || "").toLowerCase()] = 1; });
   seedFoods().forEach(function (f) { if (!have[f.name.toLowerCase()]) S.foods.push(f); });
@@ -818,6 +843,15 @@ function viewToday() {
       '<div class="spacer"></div>' +
       (isToday ? '' : '<button class="textbtn" data-action="day-today">Back to today</button>') +
     '</div>';
+
+  var since = S.lastExport ? daysBetween(S.lastExport, todayKey()) : null;
+  var worthKeeping = S.log.length + S.weights.length + S.batches.length > 0;
+  if (worthKeeping && (since === null || since >= 14)) {
+    h += '<div class="banner" style="display:flex;align-items:center;gap:10px">' +
+      '<span style="flex:1">' + (since === null ? 'No backup yet.' : 'Last backup was ' + since + ' days ago.') +
+      ' Your data lives only in this browser.</span>' +
+      '<button class="btn small" data-action="export">Back up</button></div>';
+  }
 
   var on = isCheat(day);
   h += '<button class="cheat" data-action="toggle-cheat" aria-pressed="' + on + '">' +
@@ -1509,7 +1543,9 @@ function openSettings() {
   });
   h += '<button class="btn ghost block" data-action="new-profile">+ New profile</button>' +
     '<h2>Your data</h2>' +
-    '<p class="hint">Everything is stored in this browser only. Nothing is uploaded anywhere. Export before you clear your browser data or switch phones.</p>' +
+    '<p class="hint">There is no server and no account. Everything is saved in this browser on this device, and the app never sends your data anywhere.' +
+      (S.lastExport ? ' Last backup: ' + S.lastExport + '.' : ' You have not taken a backup yet.') + '</p>' +
+    '<p class="hint">On iPhone, Safari wipes a site\'s storage after 7 days without a visit. Adding this to your Home Screen and opening it from there is exempt from that. Either way, export now and then.</p>' +
     '<div class="split"><button class="btn ghost" data-action="export">Export file</button>' +
     '<button class="btn ghost" data-action="import">Import file</button></div>' +
     '<input type="file" id="importfile" accept="application/json,.json" style="display:none">' +
@@ -1590,6 +1626,9 @@ function doExport() {
   var a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = "lightweight-baby-" + todayKey() + ".json";
+  S.lastExport = todayKey();
+  persist();
+  render();   // clears the backup nudge straight away
   a.click();
   setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
 }

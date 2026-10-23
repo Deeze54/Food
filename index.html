@@ -526,7 +526,9 @@ var S = load() || {
   log: [],
   weights: [],
   weightUnit: "lb",
-  cheatDays: {}
+  cheatDays: {},
+  foodUnit: "own",
+  energyUnit: "kcal"
 };
 if (!S.foods || !S.foods.length) S.foods = seedFoods();
 if (!S.log) S.log = [];
@@ -554,6 +556,8 @@ ensureProfiles();
 if (!S.weights) S.weights = [];
 if (!S.weightUnit) S.weightUnit = "lb";
 if (!S.cheatDays) S.cheatDays = {};
+if (!S.foodUnit) S.foodUnit = "own";     // own | g | oz
+if (!S.energyUnit) S.energyUnit = "kcal"; // kcal | kJ
 if (S.dayTags) { delete S.dayTags; persist(); }   // derived on export, never stored
 
 /* Add foods that shipped after this save was made. Matching is by name, so
@@ -704,6 +708,17 @@ function batchPerUnit(b) {
 function portionGrams(b) { return b.portionGrams > 0 ? b.portionGrams : 0; }
 function cookedGrams(b) { return portionGrams(b) * (b.yieldQty > 0 ? b.yieldQty : 1); }
 
+/* Energy is stored as kcal throughout and converted only on the way out. */
+var KJ_PER_KCAL = 4.184;
+function isKJ() { return S.energyUnit === "kJ"; }
+function eUnit() { return isKJ() ? "kJ" : "kcal"; }
+function eShow(kcal) { return r0(isKJ() ? (kcal || 0) * KJ_PER_KCAL : (kcal || 0)); }
+function eFromInput(v) { return isKJ() ? num(v) / KJ_PER_KCAL : num(v); }
+function eToInput(kcal) {
+  if (isKJ()) return Math.round((kcal || 0) * KJ_PER_KCAL);
+  return Math.round((kcal || 0) * 10) / 10;
+}
+
 /* Bodyweight is stored in kg and shown in whatever unit you picked. */
 var LB_PER_KG = 2.20462;
 function toKg(v) { return S.weightUnit === "lb" ? v / LB_PER_KG : v; }
@@ -816,10 +831,10 @@ function gaugeHTML() {
   }
   return '<div class="gauge">' +
     '<div class="readout' + (over ? ' over' : '') + '">' +
-      '<span class="big">' + r0(Math.abs(left)) + '</span>' +
-      '<span class="unit">kcal ' + (over ? 'over' : 'left') + '</span>' +
+      '<span class="big">' + eShow(Math.abs(left)) + '</span>' +
+      '<span class="unit">' + eUnit() + ' ' + (over ? 'over' : 'left') + '</span>' +
     '</div>' +
-    '<div class="eaten">' + r0(t.kcal) + ' eaten of ' + r0(g.kcal) + '</div>' +
+    '<div class="eaten">' + eShow(t.kcal) + ' eaten of ' + eShow(g.kcal) + '</div>' +
     '<div class="rail' + (over ? ' over' : '') + '"><i style="width:' + pct + '%"></i></div>' +
     '<div class="macros">' +
       macro("p", "Protein", t.p, g.p) +
@@ -870,7 +885,7 @@ function viewToday() {
       h += '<div class="row"><div class="grow">' +
         '<div class="name">' + esc(e.name) + '</div>' +
         '<div class="meta">' + esc(e.qtyLabel) + '</div>' + macroDots(e) +
-        '</div><div class="kcal">' + r0(e.kcal) + '</div>' +
+        '</div><div class="kcal">' + eShow(e.kcal) + '</div>' +
         '<button class="x" data-action="del-entry" data-id="' + e.id + '" aria-label="Remove">✕</button></div>';
     });
   }
@@ -895,7 +910,7 @@ function viewBatches() {
       var g = r0(portionGrams(b));
       h += '<div class="row"><button class="grow" data-action="edit-batch" data-id="' + b.id + '" style="background:none;border:0;padding:0">' +
         '<div class="name">' + esc(b.name) + '</div>' +
-        '<div class="meta">' + r0(per.kcal) + ' kcal per ' + esc(b.yieldUnit) +
+        '<div class="meta">' + eShow(per.kcal) + ' ' + eUnit() + ' per ' + esc(b.yieldUnit) +
           (g ? ' (' + g + ' g)' : '') + ' · makes ' + r1(b.yieldQty) + '</div>' +
         macroDots(per) + '</button>' +
         '<button class="btn small" data-action="quick-log" data-id="' + b.id + '">Log 1</button></div>';
@@ -923,7 +938,7 @@ function renderFoodList(q) {
   list.forEach(function (f) {
     h += '<div class="row"><button class="grow" data-action="edit-food" data-id="' + f.id + '" style="background:none;border:0;padding:0">' +
       '<div class="name">' + esc(f.name) + '</div>' +
-      '<div class="meta">' + r0(f.kcal) + ' kcal / 100 g' +
+      '<div class="meta">' + eShow(f.kcal) + ' ' + eUnit() + ' / 100 g' +
         (f.unitGrams ? ' · 1 ' + esc(f.unitName) + ' = ' + r1(f.unitGrams) + ' g' : '') + '</div>' +
       macroDots(f) + '</button></div>';
   });
@@ -1105,7 +1120,7 @@ function openAdd() {
     '<div id="amount"></div>' +
     '<h2 style="margin-top:18px">Not in the list?</h2>' +
     '<label class="field"><input type="text" id="mname" placeholder="Name (e.g. burrito out)"></label>' +
-    '<label class="field"><input type="number" id="mkcal" placeholder="Calories" inputmode="decimal"></label>' +
+    '<label class="field"><input type="number" id="mkcal" placeholder="' + (isKJ() ? 'Kilojoules' : 'Calories') + '" inputmode="decimal"></label>' +
     '<div class="grid4">' +
       '<input type="number" id="mp" placeholder="P" inputmode="decimal" aria-label="Protein">' +
       '<input type="number" id="mc" placeholder="C" inputmode="decimal" aria-label="Carbs">' +
@@ -1134,14 +1149,14 @@ function renderResults(q) {
       var per = batchPerUnit(b);
       h += '<button class="row" data-action="pick" data-kind="batch" data-id="' + b.id + '">' +
         '<div class="grow"><div class="name">' + esc(b.name) + '</div>' +
-        '<div class="meta">' + r0(per.kcal) + ' kcal per ' + esc(b.yieldUnit) + '</div></div></button>';
+        '<div class="meta">' + eShow(per.kcal) + ' ' + eUnit() + ' per ' + esc(b.yieldUnit) + '</div></div></button>';
     });
   }
   h += '<h2' + (bs.length ? '' : ' style="margin-top:4px"') + '>Foods</h2>';
   fs.forEach(function (f) {
     h += '<button class="row" data-action="pick" data-kind="food" data-id="' + f.id + '">' +
       '<div class="grow"><div class="name">' + esc(f.name) + '</div>' +
-      '<div class="meta">' + r0(f.kcal) + ' kcal / 100 g</div></div></button>';
+      '<div class="meta">' + eShow(f.kcal) + ' ' + eUnit() + ' / 100 g</div></div></button>';
   });
   if (!bs.length && !fs.length) h += '<div class="empty">Nothing found. Use the numbers box below.</div>';
   document.getElementById("results").innerHTML = h;
@@ -1163,13 +1178,18 @@ function pick(kind, id) {
     if (!f) return;
     name = f.name;
     opts.push({ label: "g", per: scale(f, 1 / 100) });
-    if (f.unitGrams > 0) opts.unshift({ label: f.unitName, per: scale(f, f.unitGrams / 100) });
+    if (f.unitGrams > 0) opts.push({ label: f.unitName, per: scale(f, f.unitGrams / 100) });
     opts.push({ label: "oz", per: scale(f, 28.35 / 100) });
+    // the Settings preference decides which of these comes up first
+    var want = S.foodUnit === "own" ? (f.unitGrams > 0 ? f.unitName : "g") : S.foodUnit;
+    for (var oi = 0; oi < opts.length; oi++) {
+      if (opts[oi].label === want) { opts.unshift(opts.splice(oi, 1)[0]); break; }
+    }
   }
   picked = { kind: kind, id: id, name: name, opts: opts };
   var sel = "";
   opts.forEach(function (o, i) { sel += '<option value="' + i + '">' + esc(o.text || o.label) + '</option>'; });
-  var defQty = opts[0].label === "g" ? 100 : 1;
+  var defQty = opts[0].label === "g" ? 100 : opts[0].label === "oz" ? 4 : 1;
   document.getElementById("results").innerHTML = "";
   document.getElementById("q").value = "";
   document.getElementById("amount").innerHTML =
@@ -1184,12 +1204,13 @@ function pick(kind, id) {
   function prev() {
     var m = scale(picked.opts[+unit.value].per, num(qty.value));
     document.getElementById("preview").textContent =
-      r0(m.kcal) + " kcal · " + r1(m.p) + "p · " + r1(m.c) + "c · " + r1(m.f) + "f" +
+      eShow(m.kcal) + " " + eUnit() + " · " + r1(m.p) + "p · " + r1(m.c) + "c · " + r1(m.f) + "f" +
       (m.fib > 0 ? " · " + r1(m.fib) + " fib" : "");
   }
   qty.addEventListener("input", prev);
   unit.addEventListener("change", function () {
-    qty.value = picked.opts[+unit.value].label === "g" ? 100 : 1;
+    var l = picked.opts[+unit.value].label;
+    qty.value = l === "g" ? 100 : l === "oz" ? 4 : 1;
     prev();
   });
   prev();
@@ -1242,13 +1263,13 @@ function renderBatchSheet() {
     draft.items.forEach(function (it, i) {
       var m = ingTotals(it);
       h += '<div class="ing"><div class="grow"><div>' + esc(it.name) + '</div>' +
-        '<div class="g">' + esc(amountLabel(it)) + ' · ' + r0(m.kcal) + ' kcal · ' +
+        '<div class="g">' + esc(amountLabel(it)) + ' · ' + eShow(m.kcal) + ' ' + eUnit() + ' · ' +
         r1(m.p) + 'p ' + r1(m.c) + 'c ' + r1(m.f) + 'f' +
         (m.fib > 0 ? ' ' + r1(m.fib) + 'fib' : '') + '</div></div>' +
         '<button class="x" data-action="edit-ing" data-i="' + i + '" aria-label="Edit">✎</button>' +
         '<button class="x" data-action="rm-ing" data-i="' + i + '" aria-label="Remove">✕</button></div>';
     });
-    h += '<div class="totalline"><span>Batch total</span><b>' + r0(t.kcal) + ' kcal · ' +
+    h += '<div class="totalline"><span>Batch total</span><b>' + eShow(t.kcal) + ' ' + eUnit() + ' · ' +
       r0(t.p) + 'p ' + r0(t.c) + 'c ' + r0(t.f) + 'f' + (t.fib > 0 ? ' ' + r0(t.fib) + 'fib' : '') + '</b></div>';
   }
   h += '</div><p class="hint" style="margin-top:8px">Type each ingredient and the numbers off its packet or label. Nothing is looked up for you.</p>' +
@@ -1286,12 +1307,12 @@ function renderBatchSheet() {
 function perPanelHTML() {
   var per = batchPerUnit(draft), pg = portionGrams(draft);
   var h = '<div class="cap">One ' + esc(draft.yieldUnit || "serving") + (pg > 0 ? ' = ' + r0(pg) + ' g' : '') + '</div>' +
-    '<div class="per"><span class="n">' + r0(per.kcal) + '</span><span class="l">kcal · ' +
+    '<div class="per"><span class="n">' + eShow(per.kcal) + '</span><span class="l">' + eUnit() + ' · ' +
     r1(per.p) + ' g protein · ' + r1(per.c) + ' g carbs · ' + r1(per.f) + ' g fat' +
     (per.fib > 0 ? ' · ' + r1(per.fib) + ' g fiber' : '') + '</span></div>';
   if (pg > 0) {
     var g100 = scale(per, 100 / pg);
-    h += '<div class="totalline"><span>Per 100 g</span><b>' + r0(g100.kcal) + ' kcal · ' +
+    h += '<div class="totalline"><span>Per 100 g</span><b>' + eShow(g100.kcal) + ' ' + eUnit() + ' · ' +
       r1(g100.p) + 'p ' + r1(g100.c) + 'c ' + r1(g100.f) + 'f' +
       (g100.fib > 0 ? ' ' + r1(g100.fib) + 'fib' : '') + '</b></div>';
   }
@@ -1360,8 +1381,8 @@ function addIngredientUI(editIndex) {
       '<select id="iunit" aria-label="Unit">' + units + '</select>' +
     '</div>' +
     '<label class="field"><span>The numbers below are for</span><select id="iper"></select></label>' +
-    '<label class="field"><span>Calories</span>' +
-    '<input type="number" id="ikcal" value="' + it.kcal + '" placeholder="40" inputmode="decimal"></label>' +
+    '<label class="field"><span>' + (isKJ() ? 'Kilojoules' : 'Calories') + '</span>' +
+    '<input type="number" id="ikcal" value="' + (it.kcal === "" ? "" : eToInput(it.kcal)) + '" placeholder="' + (isKJ() ? '167' : '40') + '" inputmode="decimal"></label>' +
     '<span style="display:block;font-size:13px;color:var(--muted);margin-bottom:5px">Protein · Carbs · Fat · Fiber (grams)</span>' +
     '<div class="grid4">' +
       '<input type="number" id="ip" value="' + it.p + '" placeholder="P" inputmode="decimal" aria-label="Protein">' +
@@ -1411,7 +1432,7 @@ function readIngForm() {
     qty: num(document.getElementById("iqty").value),
     unit: document.getElementById("iunit").value,
     per: document.getElementById("iper").value,
-    kcal: num(document.getElementById("ikcal").value),
+    kcal: eFromInput(document.getElementById("ikcal").value),
     p: num(document.getElementById("ip").value),
     c: num(document.getElementById("ic").value),
     f: num(document.getElementById("if").value),
@@ -1425,7 +1446,7 @@ function ingPreview() {
   var box = document.getElementById("ipreview");
   if (!box) return;
   box.innerHTML = '<div class="cap">' + esc(amountLabel(it) || "this ingredient") + ' adds</div>' +
-    '<div class="per"><span class="n">' + r0(m.kcal) + '</span><span class="l">kcal · ' +
+    '<div class="per"><span class="n">' + eShow(m.kcal) + '</span><span class="l">' + eUnit() + ' · ' +
     r1(m.p) + 'p · ' + r1(m.c) + 'c · ' + r1(m.f) + 'f' + (m.fib > 0 ? ' · ' + r1(m.fib) + ' fib' : '') + '</span></div>';
 }
 
@@ -1435,7 +1456,7 @@ function reuseIngredient(i) {
   document.getElementById("iname").value = r.name;
   document.getElementById("iqty").value = r1(r.qty);
   document.getElementById("iunit").value = r.unit || "g";
-  document.getElementById("ikcal").value = r0(r.kcal);
+  document.getElementById("ikcal").value = eToInput(r.kcal);
   document.getElementById("ip").value = r1(r.p);
   document.getElementById("ic").value = r1(r.c);
   document.getElementById("if").value = r1(r.f);
@@ -1448,8 +1469,9 @@ function openFood(id, backTo) {
   var f = id ? byId(S.foods, id) : null;
   var d = f || { id: "", name: "", kcal: "", p: "", c: "", f: "", fib: "", unitName: "", unitGrams: "" };
   var h = '<label class="field"><span>Name</span><input type="text" id="fname" value="' + esc(d.name) + '" placeholder="Rotisserie chicken"></label>' +
-    '<p class="hint">Enter the numbers per 100 g — that is what most labels and databases give. Grams are always available when logging; the unit below is an extra.</p>' +
-    '<label class="field"><input type="number" id="fk" value="' + d.kcal + '" placeholder="Calories per 100 g" inputmode="decimal" aria-label="Calories per 100 g"></label>' +
+    '<p class="hint">Enter the numbers per 100 g — that is what most labels and databases give. ' +
+      (isKJ() ? 'Energy is in kilojoules. ' : '') + 'Grams are always available when logging; the unit below is an extra.</p>' +
+    '<label class="field"><input type="number" id="fk" value="' + (d.kcal === "" ? "" : eToInput(d.kcal)) + '" placeholder="' + (isKJ() ? 'Kilojoules' : 'Calories') + ' per 100 g" inputmode="decimal" aria-label="Energy per 100 g"></label>' +
     '<div class="grid4">' +
       '<input type="number" id="fp" value="' + d.p + '" placeholder="P" inputmode="decimal" aria-label="Protein">' +
       '<input type="number" id="fc" value="' + d.c + '" placeholder="C" inputmode="decimal" aria-label="Carbs">' +
@@ -1485,7 +1507,7 @@ function saveFood(id, backTo) {
   var obj = {
     id: id || uid(),
     name: name,
-    kcal: num(document.getElementById("fk").value),
+    kcal: eFromInput(document.getElementById("fk").value),
     p: num(document.getElementById("fp").value),
     c: num(document.getElementById("fc").value),
     f: num(document.getElementById("ff").value),
@@ -1508,8 +1530,24 @@ function openSettings() {
   function seg(v, label) {
     return '<button data-action="theme" data-v="' + v + '" aria-pressed="' + (th === v ? "true" : "false") + '">' + label + '</button>';
   }
+  function pressed(action, v, cur, label) {
+    return '<button data-action="' + action + '" data-v="' + v + '" aria-pressed="' +
+      (cur === v ? "true" : "false") + '">' + label + '</button>';
+  }
   var h = '<h2 style="margin-top:0">Appearance</h2>' +
     '<div class="seg">' + seg("auto", "Match phone") + seg("light", "Light") + seg("dark", "Dark") + '</div>' +
+
+    '<h2>Units</h2>' +
+    '<p class="hint">Energy shown everywhere in the app.</p>' +
+    '<div class="seg">' + pressed("energy-unit", "kcal", S.energyUnit, "Calories") +
+      pressed("energy-unit", "kJ", S.energyUnit, "Kilojoules") + '</div>' +
+    '<p class="hint">Which unit comes up first when logging a food. Every unit stays available in the dropdown.</p>' +
+    '<div class="seg">' + pressed("food-unit", "own", S.foodUnit, "Its own") +
+      pressed("food-unit", "g", S.foodUnit, "Grams") +
+      pressed("food-unit", "oz", S.foodUnit, "Ounces") + '</div>' +
+    '<p class="hint">“Its own” means a food’s natural unit when it has one — 1 cup, 1 egg, 1 slice — and grams when it does not.</p>' +
+    '<p class="hint">Bodyweight is set on the Weight tab: currently ' + (S.weightUnit === "lb" ? "pounds" : "kilograms") + '.</p>' +
+
     '<h2>Profiles</h2>' +
     '<p class="hint">Each profile carries its own calorie and macro targets. Switch at the top of the screen; the day you are looking at remembers which one it was on.</p>';
 
@@ -1523,7 +1561,7 @@ function openSettings() {
     h += '<button class="row" data-action="edit-profile" data-id="' + pr.id + '">' +
       '<div class="grow"><div class="name">' + esc(pr.name) +
       (pr.id === S.activeProfile ? ' <span style="color:var(--muted);font-weight:400">· in use</span>' : '') + '</div>' +
-      '<div class="meta">' + r0(t.kcal) + ' kcal · ' + r0(t.p) + 'p ' + r0(t.c) + 'c ' + r0(t.f) + 'f ' + r0(t.fib) + 'fib</div>' +
+      '<div class="meta">' + eShow(t.kcal) + ' ' + eUnit() + ' · ' + r0(t.p) + 'p ' + r0(t.c) + 'c ' + r0(t.f) + 'f ' + r0(t.fib) + 'fib</div>' +
       '</div></button>';
   });
   h += '<button class="btn ghost block" data-action="new-profile">+ New profile</button>' +
@@ -1544,7 +1582,7 @@ function openProfile(id) {
   var t = pr ? pr.targets : { kcal: 2200, p: 160, c: 220, f: 70, fib: 30 };
   var h = '<label class="field"><span>Name</span><input type="text" id="pname" value="' +
       esc(pr ? pr.name : "") + '" placeholder="Rest day"></label>' +
-    '<label class="field"><span>Calories</span><input type="number" id="pk" value="' + t.kcal + '" inputmode="decimal"></label>' +
+    '<label class="field"><span>' + (isKJ() ? 'Energy (kJ)' : 'Calories') + '</span><input type="number" id="pk" value="' + eToInput(t.kcal) + '" inputmode="decimal"></label>' +
     '<div class="grid2">' +
       '<label class="field"><span>Protein (g)</span><input type="number" id="pp" value="' + t.p + '" inputmode="decimal"></label>' +
       '<label class="field"><span>Carbs (g)</span><input type="number" id="pc" value="' + t.c + '" inputmode="decimal"></label>' +
@@ -1565,7 +1603,7 @@ function saveProfile(id) {
   var name = document.getElementById("pname").value.trim();
   if (!name) { document.getElementById("pname").focus(); return; }
   var t = {
-    kcal: num(document.getElementById("pk").value, 2000),
+    kcal: eFromInput(document.getElementById("pk").value) || 2000,
     p: num(document.getElementById("pp").value, 150),
     c: num(document.getElementById("pc").value, 200),
     f: num(document.getElementById("pf").value, 65),
@@ -1598,7 +1636,8 @@ function exportPayload() {
     out.dayTags[k] = {
       profile: profileForDay(k).name,
       cheatDay: isCheat(k),
-      kcal: r0(t.kcal),
+      energy: eShow(t.kcal),
+      energyUnit: eUnit(),
       weightKg: w ? Math.round(w.kg * 100) / 100 : null
     };
     if (cheatNote(k)) out.dayTags[k].note = cheatNote(k);
@@ -1630,6 +1669,8 @@ function doImport(e) {
       if (!S.weights) S.weights = [];
       if (!S.weightUnit) S.weightUnit = "lb";
       if (!S.cheatDays) S.cheatDays = {};
+      if (!S.foodUnit) S.foodUnit = "own";
+      if (!S.energyUnit) S.energyUnit = "kcal";
       delete S.dayTags;   // rebuilt on the way out, never read back in
       persist(); applyTheme(); closeSheet(); render();
     } catch (err) {
@@ -1662,7 +1703,7 @@ document.addEventListener("click", function (e) {
       S.log = S.log.filter(function (x) { return x.id !== el.dataset.id; });
       persist(); render(); break;
     case "manual-log": {
-      var kc = num(document.getElementById("mkcal").value);
+      var kc = eFromInput(document.getElementById("mkcal").value);
       var nm = document.getElementById("mname").value.trim() || "Quick entry";
       if (kc <= 0) { document.getElementById("mkcal").focus(); return; }
       addEntry(nm, "entered by hand", {
@@ -1743,6 +1784,10 @@ document.addEventListener("click", function (e) {
     case "weight-range":
       wRange = +el.dataset.v; render(); break;
     case "open-settings": openSettings(); break;
+    case "energy-unit":
+      S.energyUnit = el.dataset.v; persist(); render(); openSettings(); break;
+    case "food-unit":
+      S.foodUnit = el.dataset.v; persist(); openSettings(); break;
     case "theme":
       S.theme = el.dataset.v;
       persist(); applyTheme();
@@ -1775,7 +1820,8 @@ document.addEventListener("click", function (e) {
         S = {
           theme: S.theme, seedVersion: SEED_VERSION,
           profiles: JSON.parse(JSON.stringify(DEFAULT_PROFILES)), activeProfile: "hard", dayProfile: {},
-          foods: seedFoods(), batches: [], log: [], weights: [], weightUnit: S.weightUnit || "lb", cheatDays: {}
+          foods: seedFoods(), batches: [], log: [], weights: [], weightUnit: S.weightUnit || "lb", cheatDays: {},
+          foodUnit: S.foodUnit || "own", energyUnit: S.energyUnit || "kcal"
         };
         persist(); closeSheet(); render();
       }
